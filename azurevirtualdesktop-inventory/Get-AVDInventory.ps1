@@ -307,23 +307,32 @@ function Get-AVDInventoryData {
                 # Get schedules with proper time conversion
                 if ($sp.Schedule) {
                     foreach ($schedule in $sp.Schedule) {
+                        # Helper function to format time - handles both Hour/hour and Minute/minute properties
+                        function Format-Time {
+                            param($timeObj)
+                            if ($null -eq $timeObj) { return 'N/A' }
+                            $hour = if ($timeObj.Hour -ne $null) { $timeObj.Hour } elseif ($timeObj.hour -ne $null) { $timeObj.hour } else { return 'N/A' }
+                            $minute = if ($timeObj.Minute -ne $null) { $timeObj.Minute } elseif ($timeObj.minute -ne $null) { $timeObj.minute } else { return 'N/A' }
+                            return "{0:D2}:{1:D2}" -f $hour, $minute
+                        }
+                        
                         $spData.schedules += @{
                             name = $schedule.Name
                             daysOfWeek = if ($schedule.DaysOfWeek) { $schedule.DaysOfWeek -join ', ' } else { 'N/A' }
-                            rampUpStartTime = if ($schedule.RampUpStartTime) { "{0:D2}:{1:D2}" -f $schedule.RampUpStartTime.Hour, $schedule.RampUpStartTime.Minute } else { 'N/A' }
+                            rampUpStartTime = Format-Time $schedule.RampUpStartTime
                             rampUpLoadBalancingAlgorithm = $schedule.RampUpLoadBalancingAlgorithm
                             rampUpMinimumHostsPct = $schedule.RampUpMinimumHostsPct
                             rampUpCapacityThresholdPct = $schedule.RampUpCapacityThresholdPct
-                            peakStartTime = if ($schedule.PeakStartTime) { "{0:D2}:{1:D2}" -f $schedule.PeakStartTime.Hour, $schedule.PeakStartTime.Minute } else { 'N/A' }
+                            peakStartTime = Format-Time $schedule.PeakStartTime
                             peakLoadBalancingAlgorithm = $schedule.PeakLoadBalancingAlgorithm
-                            rampDownStartTime = if ($schedule.RampDownStartTime) { "{0:D2}:{1:D2}" -f $schedule.RampDownStartTime.Hour, $schedule.RampDownStartTime.Minute } else { 'N/A' }
+                            rampDownStartTime = Format-Time $schedule.RampDownStartTime
                             rampDownLoadBalancingAlgorithm = $schedule.RampDownLoadBalancingAlgorithm
                             rampDownMinimumHostsPct = $schedule.RampDownMinimumHostsPct
                             rampDownCapacityThresholdPct = $schedule.RampDownCapacityThresholdPct
                             rampDownForceLogoffUser = $schedule.RampDownForceLogoffUser
                             rampDownWaitTimeMinute = $schedule.RampDownWaitTimeMinute
                             rampDownNotificationMessage = $schedule.RampDownNotificationMessage
-                            offPeakStartTime = if ($schedule.OffPeakStartTime) { "{0:D2}:{1:D2}" -f $schedule.OffPeakStartTime.Hour, $schedule.OffPeakStartTime.Minute } else { 'N/A' }
+                            offPeakStartTime = Format-Time $schedule.OffPeakStartTime
                             offPeakLoadBalancingAlgorithm = $schedule.OffPeakLoadBalancingAlgorithm
                         }
                     }
