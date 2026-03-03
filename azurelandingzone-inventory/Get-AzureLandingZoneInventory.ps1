@@ -572,37 +572,56 @@ Move Strategy:
                         try {
                             $policy = Get-AzFirewallPolicy -ResourceGroupName $policyResource.ResourceGroupName -Name $policyResource.Name -ErrorAction SilentlyContinue
                             if ($policy) {
-                                # Count rule collection groups and their rules
-                                $ruleCollectionGroups = Get-AzFirewallPolicyRuleCollectionGroup -ResourceGroupName $policy.ResourceGroupName -AzureFirewallPolicyName $policy.Name -ErrorAction SilentlyContinue
+                                # Get rule collection groups using Get-AzResource
+                                $ruleCollectionGroupResources = Get-AzResource -ResourceType 'Microsoft.Network/firewallPolicies/ruleCollectionGroups' -ResourceGroupName $policy.ResourceGroupName -ErrorAction SilentlyContinue | 
+                                    Where-Object { $_.ResourceId -like "*$($policy.Name)*" }
                                 
                                 $totalRuleCollections = 0
                                 $totalRules = 0
                                 $applicationRuleCollections = 0
                                 $networkRuleCollections = 0
                                 $natRuleCollections = 0
+                                $ruleCollectionGroupCount = 0
                                 
-                                foreach ($rcGroup in $ruleCollectionGroups) {
-                                    if ($rcGroup.Properties.RuleCollection) {
-                                        $totalRuleCollections += $rcGroup.Properties.RuleCollection.Count
+                                # Try to get detailed rule information from each rule collection group
+                                foreach ($rcgResource in $ruleCollectionGroupResources) {
+                                    try {
+                                        $rcgName = $rcgResource.Name
+                                        $rcGroup = Get-AzFirewallPolicyRuleCollectionGroup -Name $rcgName -ResourceGroupName $policy.ResourceGroupName -AzureFirewallPolicyName $policy.Name -ErrorAction SilentlyContinue
                                         
-                                        foreach ($rc in $rcGroup.Properties.RuleCollection) {
-                                            if ($rc.Rules) {
-                                                $ruleCount = $rc.Rules.Count
-                                                $totalRules += $ruleCount
+                                        if ($rcGroup) {
+                                            $ruleCollectionGroupCount++
+                                            
+                                            if ($rcGroup.Properties.RuleCollection) {
+                                                $totalRuleCollections += $rcGroup.Properties.RuleCollection.Count
                                                 
-                                                # Categorize by type
-                                                if ($rc.RuleCollectionType -eq 'FirewallPolicyFilterRuleCollection') {
-                                                    if ($rc.Rules[0].RuleType -eq 'ApplicationRule') {
-                                                        $applicationRuleCollections++
-                                                    } elseif ($rc.Rules[0].RuleType -eq 'NetworkRule') {
-                                                        $networkRuleCollections++
+                                                foreach ($rc in $rcGroup.Properties.RuleCollection) {
+                                                    if ($rc.Rules) {
+                                                        $ruleCount = $rc.Rules.Count
+                                                        $totalRules += $ruleCount
+                                                        
+                                                        # Categorize by type
+                                                        if ($rc.RuleCollectionType -eq 'FirewallPolicyFilterRuleCollection') {
+                                                            if ($rc.Rules[0].RuleType -eq 'ApplicationRule') {
+                                                                $applicationRuleCollections++
+                                                            } elseif ($rc.Rules[0].RuleType -eq 'NetworkRule') {
+                                                                $networkRuleCollections++
+                                                            }
+                                                        } elseif ($rc.RuleCollectionType -eq 'FirewallPolicyNatRuleCollection') {
+                                                            $natRuleCollections++
+                                                        }
                                                     }
-                                                } elseif ($rc.RuleCollectionType -eq 'FirewallPolicyNatRuleCollection') {
-                                                    $natRuleCollections++
                                                 }
                                             }
                                         }
+                                    } catch {
+                                        # Silently continue if we can't get details for a specific rule collection group
                                     }
+                                }
+                                
+                                # If we couldn't get rule collection groups, use the count from resources
+                                if ($ruleCollectionGroupCount -eq 0 -and $ruleCollectionGroupResources) {
+                                    $ruleCollectionGroupCount = $ruleCollectionGroupResources.Count
                                 }
                                 
                                 $inventory.networking.firewallPolicies += @{
@@ -615,7 +634,7 @@ Move Strategy:
                                     threatIntelWhitelist = if ($policy.ThreatIntelWhitelist) { $true } else { $false }
                                     dnsSettings = if ($policy.DnsSettings) { $true } else { $false }
                                     intrusionDetection = if ($policy.IntrusionDetection) { $policy.IntrusionDetection.Mode } else { 'Off' }
-                                    ruleCollectionGroups = $ruleCollectionGroups.Count
+                                    ruleCollectionGroups = $ruleCollectionGroupCount
                                     totalRuleCollections = $totalRuleCollections
                                     totalRules = $totalRules
                                     applicationRuleCollections = $applicationRuleCollections
