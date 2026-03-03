@@ -10,8 +10,7 @@ let network = null;
 document.addEventListener('DOMContentLoaded', () => {
     console.log('📄 DOM Content Loaded - Initializing app...');
     checkAuthStatus();
-    // Auto-refresh every 5 minutes
-    setInterval(checkAuthStatus, 300000);
+    // Auto-refresh disabled - use manual refresh button to reload inventory
 });
 
 // Check authentication status
@@ -93,10 +92,10 @@ async function loadInventoryData() {
         showLoading('Connecting to Azure API...');
         
         console.log('📡 Fetching inventory data from /api/inventory/data');
-        updateLoadingProgress('Collecting Azure resources...', 20);
+        updateLoadingProgress('Collecting Azure resources... (this may take a few minutes)', 20);
         
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
+        const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minute timeout
         
         const response = await fetch('/api/inventory/data', {
             signal: controller.signal
@@ -160,8 +159,8 @@ async function loadInventoryData() {
         
     } catch (error) {
         if (error.name === 'AbortError') {
-            console.error('❌ Request timed out after 2 minutes');
-            alert('Request timed out. The inventory collection is taking longer than expected. Please check the server console and try again.');
+            console.error('❌ Request timed out after 10 minutes');
+            alert('Request timed out after 10 minutes. The inventory collection is taking longer than expected. This can happen with very large environments. Please check the server console for details and try again.');
         } else {
             console.error('❌ Error loading inventory data:', error);
             alert('Error loading inventory: ' + error.message + '. Check the browser console for details.');

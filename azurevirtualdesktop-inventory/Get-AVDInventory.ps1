@@ -312,31 +312,31 @@ function Get-AVDInventoryData {
                 if ($sp.Schedule) {
                     foreach ($schedule in $sp.Schedule) {
                         # Helper function to format time - handles both Hour/hour and Minute/minute properties
-                        function Format-Time {
-                            param($timeObj)
-                            if ($null -eq $timeObj) { return 'N/A' }
-                            $hour = if ($timeObj.Hour -ne $null) { $timeObj.Hour } elseif ($timeObj.hour -ne $null) { $timeObj.hour } else { return 'N/A' }
-                            $minute = if ($timeObj.Minute -ne $null) { $timeObj.Minute } elseif ($timeObj.minute -ne $null) { $timeObj.minute } else { return 'N/A' }
-                            return "{0:D2}:{1:D2}" -f $hour, $minute
-                        }
+                        # function Format-Time {
+                        #     param($timeObj)
+                        #     if ($null -eq $timeObj) { return 'N/A' }
+                        #     $hour = if ($timeObj.Hour -ne $null) { $timeObj.Hour } elseif ($timeObj.hour -ne $null) { $timeObj.hour } else { return 'N/A' }
+                        #     $minute = if ($timeObj.Minute -ne $null) { $timeObj.Minute } elseif ($timeObj.minute -ne $null) { $timeObj.minute } else { return 'N/A' }
+                        #     return "{0:D2}:{1:D2}" -f $hour, $minute
+                        # }
                         
                         $spData.schedules += @{
                             name = $schedule.Name
                             daysOfWeek = if ($schedule.DaysOfWeek) { $schedule.DaysOfWeek -join ', ' } else { 'N/A' }
-                            rampUpStartTime = Format-Time $schedule.RampUpStartTime
+                            rampUpStartTime = if ($schedule.RampUpStartTimeHour -eq $null) { 'N/A' } else { "{0:D2}:{1:D2}" -f $schedule.RampUpStartTimeHour, ($schedule.RampUpStartTimeMinute -ne $null ? $schedule.RampUpStartTimeMinute : 0) }
                             rampUpLoadBalancingAlgorithm = $schedule.RampUpLoadBalancingAlgorithm
                             rampUpMinimumHostsPct = $schedule.RampUpMinimumHostsPct
                             rampUpCapacityThresholdPct = $schedule.RampUpCapacityThresholdPct
-                            peakStartTime = Format-Time $schedule.PeakStartTime
+                            peakStartTime = if ($schedule.PeakStartTimeHour -eq $null) { 'N/A' } else { "{0:D2}:{1:D2}" -f $schedule.PeakStartTimeHour, ($schedule.PeakStartTimeMinute -ne $null ? $schedule.PeakStartTimeMinute : 0) }
                             peakLoadBalancingAlgorithm = $schedule.PeakLoadBalancingAlgorithm
-                            rampDownStartTime = Format-Time $schedule.RampDownStartTime
+                            rampDownStartTime = if ($schedule.RampDownStartTimeHour -eq $null) { 'N/A' } else { "{0:D2}:{1:D2}" -f $schedule.RampDownStartTimeHour, ($schedule.RampDownStartTimeMinute -ne $null ? $schedule.RampDownStartTimeMinute : 0) }
                             rampDownLoadBalancingAlgorithm = $schedule.RampDownLoadBalancingAlgorithm
                             rampDownMinimumHostsPct = $schedule.RampDownMinimumHostsPct
                             rampDownCapacityThresholdPct = $schedule.RampDownCapacityThresholdPct
                             rampDownForceLogoffUser = $schedule.RampDownForceLogoffUser
                             rampDownWaitTimeMinute = $schedule.RampDownWaitTimeMinute
                             rampDownNotificationMessage = $schedule.RampDownNotificationMessage
-                            offPeakStartTime = Format-Time $schedule.OffPeakStartTime
+                            offPeakStartTime = if ($schedule.OffPeakStartTimeHour -eq $null) { 'N/A' } else { "{0:D2}:{1:D2}" -f $schedule.OffPeakStartTimeHour, ($schedule.OffPeakStartTimeMinute -ne $null ? $schedule.OffPeakStartTimeMinute : 0) }
                             offPeakLoadBalancingAlgorithm = $schedule.OffPeakLoadBalancingAlgorithm
                         }
                     }
