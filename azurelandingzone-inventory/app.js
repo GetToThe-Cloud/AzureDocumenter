@@ -1289,6 +1289,48 @@ async function exportToPDF() {
             }
             yPos += 5;
             
+            // VNet Peerings
+            if (summary.totalPeerings > 0 && inventoryData.networking?.peerings) {
+                addSubSection(`VNet Peerings (${summary.totalPeerings})`);
+                
+                inventoryData.networking.peerings.forEach(peer => {
+                    if (yPos > pageHeight - 30) {
+                        pdf.addPage();
+                        yPos = 20;
+                    }
+                    
+                    pdf.setFont(undefined, 'bold');
+                    addBullet(`${peer.name || 'Unnamed Peering'}`, 0);
+                    pdf.setFont(undefined, 'normal');
+                    addBullet(`Source VNet: ${peer.sourceVNet || 'N/A'}`, 5);
+                    addBullet(`Remote VNet: ${peer.remoteVNet || 'N/A'}`, 5);
+                    
+                    // Peering state with color
+                    const stateColor = peer.peeringState === 'Connected' ? [16, 185, 129] : [239, 68, 68];
+                    pdf.setTextColor(...stateColor);
+                    addBullet(`State: ${peer.peeringState || 'Unknown'}`, 5);
+                    pdf.setTextColor(0, 0, 0);
+                    
+                    // Configuration details
+                    const config = [];
+                    if (peer.allowVirtualNetworkAccess) config.push('VNet Access');
+                    if (peer.allowForwardedTraffic) config.push('Forwarded Traffic');
+                    if (peer.allowGatewayTransit) config.push('Gateway Transit');
+                    if (peer.useRemoteGateways) config.push('Use Remote Gateways');
+                    
+                    if (config.length > 0) {
+                        addBullet(`Configuration: ${config.join(', ')}`, 5);
+                    }
+                    
+                    if (peer.provisioningState) {
+                        addBullet(`Provisioning: ${peer.provisioningState}`, 5);
+                    }
+                    
+                    yPos += 2;
+                });
+                yPos += 5;
+            }
+            
             // Network Security
             if (inventoryData.networking?.firewalls?.length > 0 || inventoryData.networking?.networkSecurityGroups?.length > 0) {
                 addSubSection('Network Security Components');
