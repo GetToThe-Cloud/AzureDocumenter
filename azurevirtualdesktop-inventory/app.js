@@ -938,6 +938,484 @@ function renderDiagram() {
     network = new vis.Network(container, data, options);
 }
 
+// Perform Well-Architected Framework Assessment for AVD
+function performWAFAssessment(data) {
+    const summary = data.summary;
+    const allHostPools = data.subscriptions.flatMap(sub => sub.hostPools || []);
+    const allScalingPlans = data.subscriptions.flatMap(sub => sub.scalingPlans || []);
+    const allGalleries = data.subscriptions.flatMap(sub => sub.computeGalleries || []);
+    const allVNets = data.subscriptions.flatMap(sub => sub.virtualNetworks || []);
+    const allSessionHosts = allHostPools.flatMap(hp => hp.sessionHosts || []);
+    
+    const assessment = {
+        reliability: { score: 0, findings: [], recommendations: [], status: '' },
+        security: { score: 0, findings: [], recommendations: [], status: '' },
+        costOptimization: { score: 0, findings: [], recommendations: [], status: '' },
+        operationalExcellence: { score: 0, findings: [], recommendations: [], status: '' },
+        performance: { score: 0, findings: [], recommendations: [], status: '' }
+    };
+    
+    // === RELIABILITY ASSESSMENT ===
+    let reliabilityScore = 0;
+    const reliabilityChecks = 10;
+    
+    // Multiple host pools for redundancy
+    if (summary.totalHostPools >= 2) {
+        reliabilityScore += 2;
+        assessment.reliability.findings.push('✓ Multiple host pools provide redundancy and failover capability');
+    } else if (summary.totalHostPools === 1) {
+        assessment.reliability.findings.push('⚠ Single host pool - consider multiple host pools for redundancy');
+        assessment.reliability.recommendations.push('Deploy at least 2 host pools across different regions or availability zones for high availability');
+    } else {
+        assessment.reliability.findings.push('✗ No host pools deployed');
+    }
+    
+    // Session host availability
+    const availabilityRate = summary.totalSessionHosts > 0 ? (summary.availableSessionHosts / summary.totalSessionHosts) * 100 : 0;
+    if (availabilityRate >= 90) {
+        reliabilityScore += 2;
+        assessment.reliability.findings.push(`✓ Excellent session host availability (${availabilityRate.toFixed(1)}%)`);
+    } else if (availabilityRate >= 75) {
+        reliabilityScore += 1;
+        assessment.reliability.findings.push(`⚠ Good session host availability (${availabilityRate.toFixed(1)}%) - monitor unavailable hosts`);
+    } else if (summary.totalSessionHosts > 0) {
+        assessment.reliability.findings.push(`✗ Low session host availability (${availabilityRate.toFixed(1)}%) - investigate unavailable hosts`);
+        assessment.reliability.recommendations.push('Investigate and resolve issues with unavailable session hosts');
+    }
+    
+    // Validation environment (host pool with "test", "val", "dev" in name)
+    const hasValidationEnv = allHostPools.some(hp => 
+        hp.name.toLowerCase().includes('test') || 
+        hp.name.toLowerCase().includes('val') || 
+        hp.name.toLowerCase().includes('dev')
+    );
+    if (hasValidationEnv) {
+        reliabilityScore += 1;
+        assessment.reliability.findings.push('✓ Validation/test environment detected for testing updates before production');
+    } else {
+        assessment.reliability.findings.push('⚠ No validation environment detected');
+        assessment.reliability.recommendations.push('Create a validation host pool to test updates before deploying to production');
+    }
+    
+    // Session host health
+    const healthyHosts = allSessionHosts.filter(sh => sh.status === 'Available').length;
+    if (healthyHosts === allSessionHosts.length && allSessionHosts.length > 0) {
+        reliabilityScore += 1;
+        assessment.reliability.findings.push('✓ All session hosts are healthy and available');
+    } else if (healthyHosts > 0) {
+        assessment.reliability.findings.push(`⚠ ${allSessionHosts.length - healthyHosts} out of ${allSessionHosts.length} session hosts are unhealthy or unavailable`);
+    }
+    
+    // Pooled host pools for resiliency
+    const pooledHostPools = allHostPools.filter(hp => hp.hostPoolType === 'Pooled').length;
+    if (pooledHostPools > 0) {
+        reliabilityScore += 1;
+        assessment.reliability.findings.push(`✓ Pooled host pools (${pooledHostPools}) provide better resiliency than personal desktops`);
+    }
+    
+    // Multiple VNets for network redundancy
+    if (summary.totalVNets >= 2) {
+        reliabilityScore += 1;
+        assessment.reliability.findings.push(`✓ Multiple virtual networks (${summary.totalVNets}) support network redundancy`);
+    } else if (summary.totalVNets === 1) {
+        assessment.reliability.findings.push('⚠ Single virtual network - consider multi-region networking for DR');
+        assessment.reliability.recommendations.push('Consider deploying session hosts in multiple regions with separate VNets for disaster recovery');
+    }
+    
+    // Compute galleries for image availability
+    if (allGalleries.length > 0) {
+        reliabilityScore += 1;
+        assessment.reliability.findings.push('✓ Compute galleries enable consistent and reliable image deployment');
+    } else {
+        assessment.reliability.findings.push('⚠ No compute galleries - consider using galleries for standardized image management');
+        assessment.reliability.recommendations.push('Create Azure Compute Gallery for centralized image management and version control');
+    }
+    
+    // Registration token management
+    const expiredTokens = allHostPools.filter(hp => hp.registrationToken?.expired).length;
+    if (expiredTokens === 0 && allHostPools.length > 0) {
+        reliabilityScore += 1;
+        assessment.reliability.findings.push('✓ All registration tokens are valid - hosts can join host pools');
+    } else if (expiredTokens > 0) {
+        assessment.reliability.findings.push(`⚠ ${expiredTokens} host pool(s) have expired registration tokens`);
+        assessment.reliability.recommendations.push('Renew expired registration tokens to allow new session hosts to join host pools');
+    }
+    
+    // Sufficient capacity
+    const hasOverCapacity = allHostPools.some(hp => hp.sessionHostCount >= 3);
+    if (hasOverCapacity) {
+        reliabilityScore += 1;
+        assessment.reliability.findings.push('✓ Host pools have sufficient capacity for load distribution and failover');
+    } else if (allHostPools.length > 0) {
+        assessment.reliability.findings.push('⚠ Consider adding more session hosts per host pool for redundancy');
+        assessment.reliability.recommendations.push('Deploy at least 3 session hosts per host pool to handle failures');
+    }
+    
+    assessment.reliability.score = Math.round((reliabilityScore / reliabilityChecks) * 100);
+    assessment.reliability.status = assessment.reliability.score >= 80 ? 'excellent' : 
+                                   assessment.reliability.score >= 60 ? 'good' : 
+                                   assessment.reliability.score >= 40 ? 'fair' : 'needs improvement';
+    
+    // === SECURITY ASSESSMENT ===
+    let securityScore = 0;
+    const securityChecks = 10;
+    
+    // Network isolation
+    if (summary.totalVNets > 0) {
+        securityScore += 2;
+        assessment.security.findings.push('✓ Session hosts are deployed in virtual networks providing network isolation');
+    } else {
+        assessment.security.findings.push('✗ No virtual networks detected - network security may be inadequate');
+        assessment.security.recommendations.push('Deploy session hosts in virtual networks with proper network security groups');
+    }
+    
+    // Load balancer type (breadth-first is more secure for pooled)
+    const breadthFirstPools = allHostPools.filter(hp => hp.loadBalancerType === 'BreadthFirst' && hp.hostPoolType === 'Pooled').length;
+    if (breadthFirstPools > 0) {
+        securityScore += 1;
+        assessment.security.findings.push('✓ Breadth-first load balancing distributes users across all hosts, reducing attack surface per host');
+    }
+    
+    // Personal host pools (better isolation)
+    const personalPools = allHostPools.filter(hp => hp.hostPoolType === 'Personal').length;
+    if (personalPools > 0 && allHostPools.length > 0) {
+        securityScore += 1;
+        assessment.security.findings.push(`✓ Personal host pools (${personalPools}) provide user-level isolation for sensitive workloads`);
+    }
+    
+    // Registration token security (should be expired when not actively adding hosts)
+    const validTokens = allHostPools.filter(hp => hp.registrationToken?.exists && !hp.registrationToken?.expired).length;
+    if (validTokens === 0) {
+        securityScore += 1;
+        assessment.security.findings.push('✓ No active registration tokens - reduces unauthorized host enrollment risk');
+    } else {
+        assessment.security.findings.push(`⚠ ${validTokens} host pool(s) have active registration tokens - rotate when not actively adding hosts`);
+        assessment.security.recommendations.push('Expire registration tokens when not actively adding session hosts to prevent unauthorized enrollment');
+    }
+    
+    // Multiple workspaces (segmentation)
+    if (summary.totalWorkspaces >= 2) {
+        securityScore += 1;
+        assessment.security.findings.push(`✓ Multiple workspaces (${summary.totalWorkspaces}) enable user access segmentation`);
+    } else if (summary.totalWorkspaces === 1) {
+        assessment.security.findings.push('⚠ Single workspace - consider multiple workspaces for different user groups');
+    }
+    
+    // Application groups for access control
+    if (summary.totalApplicationGroups >= 2) {
+        securityScore += 1;
+        assessment.security.findings.push(`✓ Multiple application groups (${summary.totalApplicationGroups}) support granular access control`);
+    } else if (summary.totalApplicationGroups === 1) {
+        assessment.security.findings.push('⚠ Single application group - consider additional groups for role-based access');
+        assessment.security.recommendations.push('Create multiple application groups to implement principle of least privilege');
+    }
+    
+    // Image management security
+    if (allGalleries.length > 0) {
+        securityScore += 1;
+        assessment.security.findings.push('✓ Compute galleries enable secure, versioned image deployment');
+    } else {
+        assessment.security.findings.push('⚠ No compute galleries - consider using galleries for secure image management');
+    }
+    
+    // Session host resource groups (organized security boundaries)
+    const uniqueRGs = new Set(allHostPools.map(hp => hp.resourceGroup)).size;
+    if (uniqueRGs >= 2) {
+        securityScore += 1;
+        assessment.security.findings.push(`✓ Multiple resource groups (${uniqueRGs}) provide security boundaries`);
+    }
+    
+    // Check for desktop app groups (full desktop access requires more security)
+    const desktopAppGroups = data.subscriptions.flatMap(sub => sub.applicationGroups || [])
+        .filter(ag => ag.applicationGroupType === 'Desktop').length;
+    if (desktopAppGroups > 0) {
+        securityScore += 1;
+        assessment.security.findings.push('✓ Desktop application groups detected - ensure MFA and conditional access policies are enforced');
+    }
+    
+    // Session host count per host pool (smaller = better containment)
+    const avgHostsPerPool = allHostPools.length > 0 ? summary.totalSessionHosts / allHostPools.length : 0;
+    if (avgHostsPerPool > 0 && avgHostsPerPool <= 20) {
+        securityScore += 1;
+        assessment.security.findings.push('✓ Reasonable session host count per pool supports security incident containment');
+    } else if (avgHostsPerPool > 20) {
+        assessment.security.findings.push('⚠ High session host count per pool - consider splitting for better security boundaries');
+        assessment.security.recommendations.push('Limit host pools to 20-30 session hosts for easier security management and incident response');
+    }
+    
+    assessment.security.score = Math.round((securityScore / securityChecks) * 100);
+    assessment.security.status = assessment.security.score >= 80 ? 'excellent' : 
+                                assessment.security.score >= 60 ? 'good' : 
+                                assessment.security.score >= 40 ? 'fair' : 'needs improvement';
+    
+    // === COST OPTIMIZATION ASSESSMENT ===
+    let costScore = 0;
+    const costChecks = 10;
+    
+    // Scaling plans (critical for cost optimization)
+    if (summary.totalScalingPlans > 0) {
+        costScore += 3;
+        assessment.costOptimization.findings.push(`✓ Scaling plans configured (${summary.totalScalingPlans}) - automatically start/stop hosts based on demand`);
+    } else {
+        assessment.costOptimization.findings.push('✗ No scaling plans - session hosts run continuously, increasing costs');
+        assessment.costOptimization.recommendations.push('Implement scaling plans to automatically start/stop session hosts based on schedule anddemand');
+    }
+    
+    // Pooled vs Personal (pooled is more cost-effective)
+    const pooledRatio = allHostPools.length > 0 ? 
+        pooledHostPools / allHostPools.length : 0;
+    if (pooledRatio >= 0.7) {
+        costScore += 2;
+        assessment.costOptimization.findings.push(`✓ Primarily pooled host pools (${pooledHostPools}/${allHostPools.length}) - optimal cost efficiency through resource sharing`);
+    } else if (pooledHostPools > 0) {
+        costScore += 1;
+        assessment.costOptimization.findings.push(`⚠ Mix of pooled and personal host pools - consider pooled for cost savings where appropriate`);
+    } else if (personalPools > 0) {
+        assessment.costOptimization.findings.push('⚠ Only personal host pools - higher costs per user');
+        assessment.costOptimization.recommendations.push('Evaluate if task workers can use pooled host pools for significant cost savings');
+    }
+    
+    // Utilization check (active sessions vs capacity)
+    const totalCapacity = allHostPools.reduce((sum, hp) => 
+        sum + (hp.sessionHostCount * (hp.maxSessionLimit || 10)), 0);
+    const utilizationRate = totalCapacity > 0 ? 
+        (summary.totalUserSessions / totalCapacity) * 100 : 0;
+    
+    if (utilizationRate >= 60 && utilizationRate <= 80) {
+        costScore += 2;
+        assessment.costOptimization.findings.push(`✓ Good capacity utilization (${utilizationRate.toFixed(1)}%) - avoiding over-provisioning`);
+    } else if (utilizationRate < 60 && summary.totalSessionHosts > 0) {
+        costScore += 1;
+        assessment.costOptimization.findings.push(`⚠ Low capacity utilization (${utilizationRate.toFixed(1)}%) - consider reducing capacity or implementing scaling`);
+        assessment.costOptimization.recommendations.push('Review capacity and implement scaling plans to match actual demand');
+    } else if (utilizationRate > 80) {
+        assessment.costOptimization.findings.push(`⚠ High utilization (${utilizationRate.toFixed(1)}%) - users may experience degraded performance`);
+        assessment.costOptimization.recommendations.push('Add capacity or optimize session limits to prevent performance issues');
+    }
+    
+    // Appropriate session limits
+    const hasOptimalSessionLimits = allHostPools.some(hp => 
+        hp.hostPoolType === 'Pooled' && hp.maxSessionLimit >= 10 && hp.maxSessionLimit <= 25
+    );
+    if (hasOptimalSessionLimits) {
+        costScore += 1;
+        assessment.costOptimization.findings.push('✓ Optimal session limits configured (10-25) for cost-performance balance');
+    } else if (allHostPools.some(hp => hp.hostPoolType === 'Pooled' && hp.maxSessionLimit < 10)) {
+        assessment.costOptimization.findings.push('⚠ Low session limits may result in over-provisioning');
+        assessment.costOptimization.recommendations.push('Review and optimize session limits based on workload requirements');
+    }
+    
+    // Compute galleries (reuse reduces deployment costs)
+    if (allGalleries.length > 0) {
+        costScore += 1;
+        assessment.costOptimization.findings.push('✓ Compute galleries reduce deployment time and costs through image reuse');
+    } else {
+        assessment.costOptimization.recommendations.push('Use compute galleries to reduce image management overhead and deployment costs');
+    }
+    
+    // Right-sized deployment (not over-deploying host pools)
+    if (allHostPools.length > 0 && allHostPools.length <= 5) {
+        costScore += 1;
+        assessment.costOptimization.findings.push('✓ Reasonable number of host pools - avoiding management overhead');
+    } else if (allHostPools.length > 5) {
+        assessment.costOptimization.findings.push(`⚠ Multiple host pools (${allHostPools.length}) - consolidate where possible to reduce management costs`);
+        assessment.costOptimization.recommendations.push('Evaluate if host pools can be consolidated to reduce operational overhead');
+    }
+    
+    assessment.costOptimization.score = Math.round((costScore / costChecks) * 100);
+    assessment.costOptimization.status = assessment.costOptimization.score >= 80 ? 'excellent' : 
+                                        assessment.costOptimization.score >= 60 ? 'good' : 
+                                        assessment.costOptimization.score >= 40 ? 'fair' : 'needs improvement';
+    
+    // === OPERATIONAL EXCELLENCE ASSESSMENT ===
+    let opexScore = 0;
+    const opexChecks = 10;
+    
+    // Scaling plans (automation)
+    if (summary.totalScalingPlans > 0) {
+        opexScore += 2;
+        assessment.operationalExcellence.findings.push(`✓ Scaling plans (${summary.totalScalingPlans}) automate capacity management`);
+    } else {
+        assessment.operationalExcellence.findings.push('✗ No scaling plans - manual capacity management increases operational burden');
+        assessment.operationalExcellence.recommendations.push('Implement scaling plans to automate session host lifecycle management');
+    }
+    
+    // Compute galleries (standardization)
+    if (allGalleries.length > 0) {
+        opexScore += 2;
+        const totalImages = allGalleries.reduce((sum, g) => sum + (g.images?.length || 0), 0);
+        assessment.operationalExcellence.findings.push(`✓ Compute galleries (${allGalleries.length}) with ${totalImages} images support standardized deployments`);
+    } else {
+        assessment.operationalExcellence.findings.push('✗ No compute galleries - missing centralized image management');
+        assessment.operationalExcellence.recommendations.push('Create compute galleries for version-controlled, standardized image  deployment');
+    }
+    
+    // Validation environment
+    if (hasValidationEnv) {
+        opexScore += 1;
+        assessment.operationalExcellence.findings.push('✓ Validation environment supports controlled update deployment');
+    } else {
+        assessment.operationalExcellence.recommendations.push('Deploy a validation host pool for testing updates before production rollout');
+    }
+    
+    // Application groups organization
+    if (summary.totalApplicationGroups >= 2) {
+        opexScore += 1;
+        assessment.operationalExcellence.findings.push(`✓ Multiple application groups (${summary.totalApplicationGroups}) enable organized access management`);
+    }
+    
+    // Workspace organization
+    if (summary.totalWorkspaces >= 1) {
+        opexScore += 1;
+        assessment.operationalExcellence.findings.push(`✓ Workspaces configured (${summary.totalWorkspaces}) for end-user application delivery`);
+    }
+    
+    // Resource naming consistency (check if names follow patterns)
+    const hasNamingPattern = allHostPools.every(hp => 
+        hp.name.match(/^[a-z]+(-[a-z0-9]+)+$/i) || 
+        hp.name.match(/^[a-z]+_[a-z0-9_]+$/i)
+    );
+    if (hasNamingPattern && allHostPools.length > 0) {
+        opexScore += 1;
+        assessment.operationalExcellence.findings.push('✓ Consistent resource naming convention detected');
+    } else if (allHostPools.length > 1) {
+        assessment.operationalExcellence.findings.push('⚠ Inconsistent naming patterns - implement naming conventions for better resource management');
+        assessment.operationalExcellence.recommendations.push('Establish and enforce naming conventions for all AVD resources');
+    }
+    
+    // Load balancing configured
+    const hasConfiguredLB = allHostPools.every(hp => hp.loadBalancerType);
+    if (hasConfiguredLB && allHostPools.length > 0) {
+        opexScore += 1;
+        assessment.operationalExcellence.findings.push('✓ Load balancing configured on all host pools for optimal session distribution');
+    }
+    
+    // Session host health monitoring
+    if (summary.totalSessionHosts > 0) {
+        opexScore += 1;
+        assessment.operationalExcellence.findings.push('✓ Session host inventory available for health monitoring');
+    }
+    
+    // Reasonable complexity (not too many resources to manage)
+    const totalResources = summary.totalHostPools + summary.totalWorkspaces + summary.totalApplicationGroups;
+    if (totalResources > 0 && totalResources <= 20) {
+        opexScore += 1;
+        assessment.operationalExcellence.findings.push('✓ Manageable resource complexity for operational efficiency');
+    } else if (totalResources > 20) {
+        assessment.operationalExcellence.findings.push('⚠ High resource count may increase operational complexity');
+        assessment.operationalExcellence.recommendations.push('Review architecture for potential consolidation opportunities');
+    }
+    
+    assessment.operationalExcellence.score = Math.round((opexScore / opexChecks) * 100);
+    assessment.operationalExcellence.status = assessment.operationalExcellence.score >= 80 ? 'excellent' : 
+                                             assessment.operationalExcellence.score >= 60 ? 'good' : 
+                                             assessment.operationalExcellence.score >= 40 ? 'fair' : 'needs improvement';
+    
+    // === PERFORMANCE EFFICIENCY ASSESSMENT ===
+    let perfScore = 0;
+    const perfChecks = 10;
+    
+    // Load balancing strategy
+    const depthFirstForPersonal = allHostPools.filter(hp => 
+        hp.hostPoolType === 'Personal' && hp.loadBalancerType === 'Persistent'
+    ).length;
+    const breadthFirstForPooled = allHostPools.filter(hp => 
+        hp.hostPoolType === 'Pooled' && hp.loadBalancerType === 'BreadthFirst'
+    ).length;
+    
+    if (depthFirstForPersonal + breadthFirstForPooled === allHostPools.length && allHostPools.length > 0) {
+        perfScore += 2;
+        assessment.performance.findings.push('✓ Optimal load balancing strategy for each host pool type');
+    } else if (breadthFirstForPooled > 0) {
+        perfScore += 1;
+        assessment.performance.findings.push('⚠ Review load balancing configuration for optimal performance');
+        assessment.performance.recommendations.push('Use BreadthFirst for Pooled and Persistent for Personal host pools');
+    }
+    
+    // Session limits configuration
+    const hasSessionLimits = allHostPools.every(hp => hp.maxSessionLimit > 0);
+    if (hasSessionLimits && allHostPools.length > 0) {
+        perfScore += 1;
+        assessment.performance.findings.push('✓ Session limits configured to prevent overloading session hosts');
+    }
+    
+    // Optimal session limits for pooled
+    const optimalPooledLimits = allHostPools.filter(hp => 
+        hp.hostPoolType === 'Pooled' && hp.maxSessionLimit >= 5 && hp.maxSessionLimit <= 25
+    ).length;
+    if (optimalPooledLimits === pooledHostPools && pooledHostPools > 0) {
+        perfScore += 2;
+        assessment.performance.findings.push('✓ Session limits within recommended range (5-25) for pooled host pools');
+    } else if (pooledHostPools > 0) {
+        perfScore += 1;
+        assessment.performance.findings.push('⚠ Review session limits for pooled host pools (recommended: 5-25 based on workload)');
+        assessment.performance.recommendations.push('Adjust session limits based on CPU, memory, and workload type for optimal performance');
+    }
+    
+    // Multiple session hosts for performance distribution
+    const avgAvailableHosts = allHostPools.length > 0 ? 
+        allHostPools.reduce((sum, hp) => sum + hp.availableHosts, 0) / allHostPools.length : 0;
+    if (avgAvailableHosts >= 3) {
+        perfScore += 1;
+        assessment.performance.findings.push(`✓ Average ${avgAvailableHosts.toFixed(1)} available hosts per pool supports performance distribution`);
+    } else if (allHostPools.length > 0) {
+        assessment.performance.findings.push('⚠ Low average available hosts per pool - may impact performance during peak usage');
+        assessment.performance.recommendations.push('Deploy at least 3 session hosts per host pool for performance distribution');
+    }
+    
+    // Network connectivity
+    if (summary.totalVNets > 0) {
+        perfScore += 1;
+        assessment.performance.findings.push('✓ Virtual network connectivity configured for optimized network performance');
+    }
+    
+    // Proper distribution of resources across locations
+    const locations = new Set(allHostPools.map(hp => hp.location)).size;
+    if (locations >= 2) {
+        perfScore += 1;
+        assessment.performance.findings.push(`✓ Multi-region deployment (${locations} regions) reduces latency for distributed users`);
+    } else if (locations === 1 && allHostPools.length > 0) {
+        assessment.performance.findings.push('⚠ Single region deployment - consider multi-region for global user base');
+        assessment.performance.recommendations.push('Deploy host pools in regions closest to user populations for reduced latency');
+    }
+    
+    // Compute galleries (faster deployments)
+    if (allGalleries.length > 0) {
+        perfScore += 1;
+        assessment.performance.findings.push('✓ Compute galleries enable faster session host deployment and updates');
+    }
+    
+    // Current utilization vs capacity
+    if (utilizationRate > 0 && utilizationRate < 70) {
+        perfScore += 1;
+        assessment.performance.findings.push(`✓ Current utilization (${utilizationRate.toFixed(1)}%) below threshold - sufficient headroom for performance`);
+    } else if (utilizationRate >= 70 && utilizationRate <= 85) {
+        assessment.performance.findings.push(`⚠ Moderate utilization (${utilizationRate.toFixed(1)}%) - monitor for performance impact`);
+    } else if (utilizationRate > 85) {
+        assessment.performance.findings.push(`✗ High utilization (${utilizationRate.toFixed(1)}%) - likely performance degradation`);
+        assessment.performance.recommendations.push('Add session host capacity immediately to prevent performance issues');
+    }
+    
+    // Active session distribution
+    if (summary.disconnectedUserSessions > 0) {
+        const disconnectedRatio = summary.disconnectedUserSessions / summary.totalUserSessions;
+        if (disconnectedRatio < 0.2) {
+            perfScore += 1;
+            assessment.performance.findings.push('✓ Low disconnected session ratio indicates good user experience');
+        } else {
+            assessment.performance.findings.push(`⚠ ${(disconnectedRatio * 100).toFixed(1)}% disconnected sessions - investigate session stability`);
+            assessment.performance.recommendations.push('Investigate causes of user session disconnections (network, host performance, etc.)');
+        }
+    }
+    
+    assessment.performance.score = Math.round((perfScore / perfChecks) * 100);
+    assessment.performance.status = assessment.performance.score >= 80 ? 'excellent' : 
+                                   assessment.performance.score >= 60 ? 'good' : 
+                                   assessment.performance.score >= 40 ? 'fair' : 'needs improvement';
+    
+    return assessment;
+}
+
 // Export to PDF
 async function exportToPDF() {
     try {
@@ -946,160 +1424,464 @@ async function exportToPDF() {
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF('p', 'mm', 'a4');
         
-        let yOffset = 20;
+        const margin = 15;
+        const pageHeight = 297;
+        const pageWidth = 210;
+        const maxWidth = pageWidth - (margin * 2);
+        const lineHeight = 6;
+        let yPos = 20;
         
-        // Title
-        pdf.setFontSize(20);
-        pdf.text('Azure Virtual Desktop Inventory Report', 20, yOffset);
-        yOffset += 10;
+        // Helper functions
+        function addText(text, fontSize = 10, bold = false, color = [0, 0, 0]) {
+            if (yPos > pageHeight - 15) {
+                pdf.addPage();
+                yPos = 20;
+            }
+            pdf.setFontSize(fontSize);
+            pdf.setFont(undefined, bold ? 'bold' : 'normal');
+            pdf.setTextColor(...color);
+            const lines = pdf.splitTextToSize(text, maxWidth);
+            lines.forEach(line => {
+                pdf.text(line, margin, yPos);
+                yPos += lineHeight;
+            });
+            pdf.setTextColor(0, 0, 0);
+        }
         
-        // Date
+        function addBullet(text, indent = 0) {
+            if (yPos > pageHeight - 10) {
+                pdf.addPage();
+                yPos = 20;
+            }
+            const cleanText = text
+                .replace(/✓/g, '[+]')
+                .replace(/✗/g, '[-]')
+                .replace(/⚠/g, '[!]');
+            const bulletMargin = margin + indent;
+            pdf.text('-', bulletMargin, yPos);
+            const lines = pdf.splitTextToSize(cleanText, maxWidth - indent - 5);
+            lines.forEach((line, idx) => {
+                pdf.text(line, bulletMargin + 5, yPos);
+                if (idx < lines.length - 1) yPos += lineHeight;
+            });
+            yPos += lineHeight;
+        }
+        
+        function addSubSection(title) {
+            if (yPos > pageHeight - 15) {
+                pdf.addPage();
+                yPos = 20;
+            }
+            pdf.setFontSize(11);
+            pdf.setFont(undefined, 'bold');
+            pdf.setTextColor(41, 128, 185);
+            pdf.text(title, margin, yPos);
+            yPos += 7;
+            pdf.setTextColor(0, 0, 0);
+        }
+        
+        function getScoreColor(percentage) {
+            if (percentage >= 80) return [16, 185, 129];
+            if (percentage >= 60) return [245, 158, 11];
+            if (percentage >= 40) return [251, 146, 60];
+            return [239, 68, 68];
+        }
+        
+        // === COVER PAGE ===
+        pdf.setFontSize(24);
+        pdf.setFont(undefined, 'bold');
+        pdf.setTextColor(0, 120, 212);
+        pdf.text('Azure Virtual Desktop', margin, yPos);
+        yPos += 10;
+        pdf.text('Assessment Report', margin, yPos);
+        yPos += 15;
+        
+        pdf.setFontSize(12);
+        pdf.setTextColor(0, 0, 0);
+        pdf.setFont(undefined, 'normal');
+        pdf.text(`Generated: ${new Date().toLocaleString()}`, margin, yPos);
+        yPos += 10;
+        
+        if (inventoryData && inventoryData.subscriptions.length > 0) {
+            pdf.text(`Subscription: ${inventoryData.subscriptions[0].name}`, margin, yPos);
+            yPos += 7;
+            pdf.text(`Tenant ID: ${inventoryData.subscriptions[0].tenantId}`, margin, yPos);
+        }
+        yPos += 20;
+        
         pdf.setFontSize(10);
-        pdf.text(`Generated: ${new Date().toLocaleString()}`, 20, yOffset);
-        yOffset += 15;
+        addText('This report provides a comprehensive assessment of your Azure Virtual Desktop environment against Microsoft Well-Architected Framework best practices, including reliability, security, cost optimization, operational excellence, and performance efficiency.');
         
-        if (!inventoryData) {
-            pdf.text('No inventory data available', 20, yOffset);
-        } else {
-            // Summary
-            pdf.setFontSize(14);
-            pdf.text('Summary', 20, yOffset);
-            yOffset += 8;
-            
-            pdf.setFontSize(10);
+        // === EXECUTIVE SUMMARY ===
+        pdf.addPage();
+        yPos = 20;
+        
+        addText('EXECUTIVE SUMMARY', 16, true, [0, 120, 212]);
+        yPos += 5;
+        
+        if (inventoryData) {
             const summary = inventoryData.summary;
-            pdf.text(`Host Pools: ${summary.totalHostPools}`, 20, yOffset);
-            yOffset += 6;
-            pdf.text(`Session Hosts: ${summary.totalSessionHosts} (${summary.availableSessionHosts} available, ${summary.unavailableSessionHosts} unavailable)`, 20, yOffset);
-            yOffset += 6;
-            pdf.text(`Workspaces: ${summary.totalWorkspaces}`, 20, yOffset);
-            yOffset += 6;
-            pdf.text(`Application Groups: ${summary.totalApplicationGroups}`, 20, yOffset);
-            yOffset += 6;
-            pdf.text(`Scaling Plans: ${summary.totalScalingPlans || 0}`, 20, yOffset);
-            yOffset += 6;
-            pdf.text(`Virtual Networks: ${summary.totalVNets || 0}`, 20, yOffset);
-            yOffset += 6;
-            pdf.text(`Compute Galleries: ${summary.totalComputeGalleries || 0}`, 20, yOffset);
-            yOffset += 15;
+            
+            addSubSection('Resource Inventory');
+            addBullet(`Host Pools: ${summary.totalHostPools || 0}`);
+            addBullet(`Session Hosts: ${summary.totalSessionHosts || 0} (${summary.availableSessionHosts || 0} available, ${summary.unavailableSessionHosts || 0} unavailable)`);
+            addBullet(`User Sessions: ${summary.totalUserSessions || 0} (${summary.activeUserSessions || 0} active, ${summary.disconnectedUserSessions || 0} disconnected)`);
+            addBullet(`Workspaces: ${summary.totalWorkspaces || 0}`);
+            addBullet(`Application Groups: ${summary.totalApplicationGroups || 0}`);
+            addBullet(`Scaling Plans: ${summary.totalScalingPlans || 0}`);
+            addBullet(`Virtual Networks: ${summary.totalVNets || 0}`);
+            addBullet(`Compute Galleries: ${summary.totalComputeGalleries || 0}`);
+            yPos += 5;
+            
+            // Perform WAF Assessment
+            const wafAssessment = performWAFAssessment(inventoryData);
+            
+            addSubSection('Well-Architected Framework Assessment');
+            
+            // Overall Score
+            const overallScore = Math.round(
+                (wafAssessment.reliability.score +
+                 wafAssessment.security.score +
+                 wafAssessment.costOptimization.score +
+                 wafAssessment.operationalExcellence.score +
+                 wafAssessment.performance.score) / 5
+            );
+            
+            pdf.setFontSize(12);
+            pdf.setFont(undefined, 'bold');
+            const scoreColor = getScoreColor(overallScore);
+            pdf.setTextColor(...scoreColor);
+            pdf.text(`Overall WAF Score: ${overallScore}%`, margin, yPos);
+            yPos += 8;
+            pdf.setTextColor(0, 0, 0);
+            pdf.setFont(undefined, 'normal');
+            pdf.setFontSize(10);
+            
+            addText('This assessment evaluates your AVD environment across five pillars of the Well-Architected Framework. Scores reflect compliance with Microsoft best practices for Azure Virtual Desktop deployments.');
+            yPos += 5;
+            
+            // === WAF PILLARS ASSESSMENT ===
+            pdf.addPage();
+            yPos = 20;
+            
+            addText('WELL-ARCHITECTED FRAMEWORK ASSESSMENT', 16, true, [0, 120, 212]);
+            yPos += 5;
+            
+            // Pillar 1: Reliability
+            addSubSection(`Reliability - ${wafAssessment.reliability.score}%`);
+            const relColor = getScoreColor(wafAssessment.reliability.score);
+            pdf.setTextColor(...relColor);
+            addBullet(`Status: [${wafAssessment.reliability.status.toUpperCase()}]`);
+            pdf.setTextColor(0, 0, 0);
+            
+            addText('Findings:', 10, true);
+            wafAssessment.reliability.findings.forEach(finding => {
+                addBullet(finding, 2);
+            });
+            yPos += 3;
+            
+            if (wafAssessment.reliability.recommendations.length > 0) {
+                addText('Recommendations:', 10, true);
+                wafAssessment.reliability.recommendations.forEach(rec => {
+                    addBullet(rec, 2);
+                });
+            }
+            yPos += 5;
+            
+            // Pillar 2: Security
+            addSubSection(`Security - ${wafAssessment.security.score}%`);
+            const secColor = getScoreColor(wafAssessment.security.score);
+            pdf.setTextColor(...secColor);
+            addBullet(`Status: [${wafAssessment.security.status.toUpperCase()}]`);
+            pdf.setTextColor(0, 0, 0);
+            
+            addText('Findings:', 10, true);
+            wafAssessment.security.findings.forEach(finding => {
+                addBullet(finding, 2);
+            });
+            yPos += 3;
+            
+            if (wafAssessment.security.recommendations.length > 0) {
+                addText('Recommendations:', 10, true);
+                wafAssessment.security.recommendations.forEach(rec => {
+                    addBullet(rec, 2);
+                });
+            }
+            yPos += 5;
+            
+            // Pillar 3: Cost Optimization
+            if (yPos > pageHeight - 60) {
+                pdf.addPage();
+                yPos = 20;
+            }
+            
+            addSubSection(`Cost Optimization - ${wafAssessment.costOptimization.score}%`);
+            const costColor = getScoreColor(wafAssessment.costOptimization.score);
+            pdf.setTextColor(...costColor);
+            addBullet(`Status: [${wafAssessment.costOptimization.status.toUpperCase()}]`);
+            pdf.setTextColor(0, 0, 0);
+            
+            addText('Findings:', 10, true);
+            wafAssessment.costOptimization.findings.forEach(finding => {
+                addBullet(finding, 2);
+            });
+            yPos += 3;
+            
+            if (wafAssessment.costOptimization.recommendations.length > 0) {
+                addText('Recommendations:', 10, true);
+                wafAssessment.costOptimization.recommendations.forEach(rec => {
+                    addBullet(rec, 2);
+                });
+            }
+            yPos += 5;
+            
+            // Pillar 4: Operational Excellence
+            if (yPos > pageHeight - 60) {
+                pdf.addPage();
+                yPos = 20;
+            }
+            
+            addSubSection(`Operational Excellence - ${wafAssessment.operationalExcellence.score}%`);
+            const opexColor = getScoreColor(wafAssessment.operationalExcellence.score);
+            pdf.setTextColor(...opexColor);
+            addBullet(`Status: [${wafAssessment.operationalExcellence.status.toUpperCase()}]`);
+            pdf.setTextColor(0, 0, 0);
+            
+            addText('Findings:', 10, true);
+            wafAssessment.operationalExcellence.findings.forEach(finding => {
+                addBullet(finding, 2);
+            });
+            yPos += 3;
+            
+            if (wafAssessment.operationalExcellence.recommendations.length > 0) {
+                addText('Recommendations:', 10, true);
+                wafAssessment.operationalExcellence.recommendations.forEach(rec => {
+                    addBullet(rec, 2);
+                });
+            }
+            yPos += 5;
+            
+            // Pillar 5: Performance Efficiency
+            if (yPos > pageHeight - 60) {
+                pdf.addPage();
+                yPos = 20;
+            }
+            
+            addSubSection(`Performance Efficiency - ${wafAssessment.performance.score}%`);
+            const perfColor = getScoreColor(wafAssessment.performance.score);
+            pdf.setTextColor(...perfColor);
+            addBullet(`Status: [${wafAssessment.performance.status.toUpperCase()}]`);
+            pdf.setTextColor(0, 0, 0);
+            
+            addText('Findings:', 10, true);
+            wafAssessment.performance.findings.forEach(finding => {
+                addBullet(finding, 2);
+            });
+            yPos += 3;
+            
+            if (wafAssessment.performance.recommendations.length > 0) {
+                addText('Recommendations:', 10, true);
+                wafAssessment.performance.recommendations.forEach(rec => {
+                    addBullet(rec, 2);
+                });
+            }
+            yPos += 5;
+            
+            // === DETAILED INVENTORY ===
+            pdf.addPage();
+            yPos = 20;
+            
+            addText('DETAILED RESOURCE INVENTORY', 16, true, [0, 120, 212]);
+            yPos += 5;
             
             // Subscriptions
             inventoryData.subscriptions.forEach((sub, subIndex) => {
-                if (yOffset > 250) {
+                if (yPos > pageHeight - 30) {
                     pdf.addPage();
-                    yOffset = 20;
+                    yPos = 20;
                 }
                 
-                pdf.setFontSize(14);
-                pdf.text(`Subscription: ${sub.name}`, 20, yOffset);
-                yOffset += 8;
-                
-                pdf.setFontSize(10);
+                addSubSection(`Subscription: ${sub.name}`);
                 
                 // Host Pools
                 if (sub.hostPools.length > 0) {
-                    pdf.text('Host Pools:', 25, yOffset);
-                    yOffset += 6;
+                    addText('Host Pools:', 11, true);
                     
                     sub.hostPools.forEach(hp => {
-                        if (yOffset > 270) {
+                        if (yPos > pageHeight - 35) {
                             pdf.addPage();
-                            yOffset = 20;
+                            yPos = 20;
                         }
-                        pdf.text(`  • ${hp.name} (${hp.hostPoolType}, ${hp.sessionHostCount} hosts)`, 30, yOffset);
-                        yOffset += 6;
+                        pdf.setFont(undefined, 'bold');
+                        addBullet(`${hp.name}`, 0);
+                        pdf.setFont(undefined, 'normal');
+                        addBullet(`Type: ${hp.hostPoolType}, Load Balancing: ${hp.loadBalancerType}`, 5);
+                        addBullet(`Session Hosts: ${hp.sessionHostCount} (${hp.availableHosts} available, ${hp.unavailableHosts} unavailable)`, 5);
+                        if (hp.totalUserSessions > 0) {
+                            addBullet(`User Sessions: ${hp.totalUserSessions} (${hp.activeUserSessions} active, ${hp.disconnectedUserSessions} disconnected)`, 5);
+                        }
+                        addBullet(`Max Session Limit: ${hp.maxSessionLimit}`, 5);
+                        addBullet(`Location: ${hp.location}`, 5);
+                        
+                        if (hp.registrationToken) {
+                            const tokenStatus = hp.registrationToken.expired ? 'Expired' : 'Valid';
+                            addBullet(`Registration Token: ${tokenStatus}`, 5);
+                        }
+                        yPos += 2;
                     });
-                    yOffset += 4;
+                    yPos += 3;
+                }
+                
+                // Session Hosts Detail
+                if (sub.hostPools.length > 0) {
+                    const allSessionHosts = sub.hostPools.flatMap(hp => hp.sessionHosts || []);
+                    if (allSessionHosts.length > 0) {
+                        if (yPos > pageHeight - 30) {
+                            pdf.addPage();
+                            yPos = 20;
+                        }
+                        
+                        addText('Session Hosts:', 11, true);
+                        allSessionHosts.slice(0, 20).forEach(sh => {
+                            if (yPos > pageHeight - 20) {
+                                pdf.addPage();
+                                yPos = 20;
+                            }
+                            addBullet(`${sh.name} - Status: ${sh.status}, Sessions: ${sh.sessions}`, 0);
+                        });
+                        if (allSessionHosts.length > 20) {
+                            addBullet(`... and ${allSessionHosts.length - 20} more session hosts`, 0);
+                        }
+                        yPos += 3;
+                    }
                 }
                 
                 // Workspaces
                 if (sub.workspaces.length > 0) {
-                    pdf.text('Workspaces:', 25, yOffset);
-                    yOffset += 6;
-                    
+                    if (yPos > pageHeight - 20) {
+                        pdf.addPage();
+                        yPos = 20;
+                    }
+                    addText('Workspaces:', 11, true);
                     sub.workspaces.forEach(ws => {
-                        if (yOffset > 270) {
-                            pdf.addPage();
-                            yOffset = 20;
-                        }
-                        pdf.text(`  • ${ws.name}`, 30, yOffset);
-                        yOffset += 6;
+                        addBullet(`${ws.name} - Location: ${ws.location}`, 0);
                     });
-                    yOffset += 4;
+                    yPos += 3;
                 }
                 
                 // Application Groups
                 if (sub.applicationGroups.length > 0) {
-                    pdf.text('Application Groups:', 25, yOffset);
-                    yOffset += 6;
-                    
+                    if (yPos > pageHeight - 20) {
+                        pdf.addPage();
+                        yPos = 20;
+                    }
+                    addText('Application Groups:', 11, true);
                     sub.applicationGroups.forEach(ag => {
-                        if (yOffset > 270) {
-                            pdf.addPage();
-                            yOffset = 20;
+                        addBullet(`${ag.name} (${ag.applicationGroupType})`, 0);
+                        if (ag.applications && ag.applications.length > 0) {
+                            addBullet(`Applications: ${ag.applications.length}`, 5);
                         }
-                        pdf.text(`  • ${ag.name} (${ag.applicationGroupType})`, 30, yOffset);
-                        yOffset += 6;
                     });
-                    yOffset += 4;
+                    yPos += 3;
                 }
                 
                 // Scaling Plans
                 if (sub.scalingPlans && sub.scalingPlans.length > 0) {
-                    pdf.text('Scaling Plans:', 25, yOffset);
-                    yOffset += 6;
-                    
+                    if (yPos > pageHeight - 20) {
+                        pdf.addPage();
+                        yPos = 20;
+                    }
+                    addText('Scaling Plans:', 11, true);
                     sub.scalingPlans.forEach(sp => {
-                        if (yOffset > 270) {
-                            pdf.addPage();
-                            yOffset = 20;
+                        addBullet(`${sp.name} (${sp.hostPoolType || 'N/A'})`, 0);
+                        if (sp.schedules && sp.schedules.length > 0) {
+                            addBullet(`Schedules: ${sp.schedules.length}`, 5);
                         }
-                        pdf.text(`  • ${sp.name} (${sp.hostPoolType || 'N/A'})`, 30, yOffset);
-                        yOffset += 6;
                     });
-                    yOffset += 4;
+                    yPos += 3;
                 }
                 
                 // Virtual Networks
                 if (sub.virtualNetworks && sub.virtualNetworks.length > 0) {
-                    pdf.text('Virtual Networks (AVD-connected):', 25, yOffset);
-                    yOffset += 6;
-                    
+                    if (yPos > pageHeight - 20) {
+                        pdf.addPage();
+                        yPos = 20;
+                    }
+                    addText('Virtual Networks:', 11, true);
                     sub.virtualNetworks.forEach(vnet => {
-                        if (yOffset > 270) {
-                            pdf.addPage();
-                            yOffset = 20;
-                        }
-                        const hostCount = vnet.connectedSessionHosts ? ` - ${vnet.connectedSessionHosts} session hosts` : '';
-                        pdf.text(`  • ${vnet.name} (${vnet.addressSpace})${hostCount}`, 30, yOffset);
-                        yOffset += 6;
+                        const hostCount = vnet.connectedSessionHosts ? ` (${vnet.connectedSessionHosts} session hosts)` : '';
+                        addBullet(`${vnet.name} - ${vnet.addressSpace}${hostCount}`, 0);
                     });
-                    yOffset += 4;
+                    yPos += 3;
                 }
                 
                 // Compute Galleries
                 if (sub.computeGalleries && sub.computeGalleries.length > 0) {
-                    pdf.text('Azure Compute Galleries:', 25, yOffset);
-                    yOffset += 6;
-                    
+                    if (yPos > pageHeight - 20) {
+                        pdf.addPage();
+                        yPos = 20;
+                    }
+                    addText('Azure Compute Galleries:', 11, true);
                     sub.computeGalleries.forEach(gallery => {
-                        if (yOffset > 270) {
-                            pdf.addPage();
-                            yOffset = 20;
-                        }
                         const imageCount = gallery.images ? gallery.images.length : 0;
-                        pdf.text(`  • ${gallery.name} (${imageCount} images)`, 30, yOffset);
-                        yOffset += 6;
+                        addBullet(`${gallery.name} (${imageCount} images)`, 0);
+                        if (gallery.images && gallery.images.length > 0) {
+                            gallery.images.slice(0, 5).forEach(img => {
+                                addBullet(`${img.name} - ${img.osType}`, 5);
+                            });
+                            if (gallery.images.length > 5) {
+                                addBullet(`... and ${gallery.images.length - 5} more images`, 5);
+                            }
+                        }
                     });
-                    yOffset += 4;
+                    yPos += 3;
                 }
                 
-                yOffset += 8;
+                yPos += 5;
             });
+            
+            // === REFERENCES ===
+            pdf.addPage();
+            yPos = 20;
+            
+            addText('REFERENCES', 14, true, [0, 120, 212]);
+            yPos += 5;
+            
+            addSubSection('Microsoft Documentation');
+            addText('This assessment is based on Microsoft Well-Architected Framework guidance for Azure Virtual Desktop:');
+            yPos += 3;
+            
+            addBullet('Azure Virtual Desktop - Well-Architected Framework');
+            addText('https://learn.microsoft.com/azure/well-architected/azure-virtual-desktop/', 8);
+            yPos += 2;
+            
+            addBullet('Azure Virtual Desktop Overview');
+            addText('https://learn.microsoft.com/azure/virtual-desktop/overview', 8);
+            yPos += 2;
+            
+            addBullet('Azure Virtual Desktop Best Practices');
+            addText('https://learn.microsoft.com/azure/well-architected/azure-virtual-desktop/design-principles', 8);
+            yPos += 2;
+            
+            addBullet('Security Best Practices for Azure Virtual Desktop');
+            addText('https://learn.microsoft.com/azure/virtual-desktop/security-guide', 8);
+            yPos += 2;
+            
+            addBullet('Cost Optimization for Azure Virtual Desktop');
+            addText('https://learn.microsoft.com/azure/well-architected/azure-virtual-desktop/cost-optimization', 8);
+        }
+        
+        // Add page numbers
+        const pageCount = pdf.internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+            pdf.setPage(i);
+            pdf.setFontSize(8);
+            pdf.setTextColor(150, 150, 150);
+            pdf.text(`Page ${i} of ${pageCount}`, margin + maxWidth - 20, 290);
         }
         
         // Save PDF
-        pdf.save(`AVD-Inventory-${new Date().toISOString().split('T')[0]}.pdf`);
+        pdf.save(`AVD-WAF-Assessment-${new Date().toISOString().split('T')[0]}.pdf`);
         
     } catch (error) {
         console.error('Error exporting to PDF:', error);
