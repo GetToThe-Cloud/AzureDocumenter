@@ -310,20 +310,20 @@ function Get-AVDInventoryData {
                         $spData.schedules += @{
                             name = $schedule.Name
                             daysOfWeek = if ($schedule.DaysOfWeek) { $schedule.DaysOfWeek -join ', ' } else { 'N/A' }
-                            rampUpStartTime = if ($schedule.RampUpStartTime) { $schedule.RampUpStartTime.Hour.ToString('00') + ':' + $schedule.RampUpStartTime.Minute.ToString('00') } else { 'N/A' }
+                            rampUpStartTime = if ($schedule.RampUpStartTime) { "{0:D2}:{1:D2}" -f $schedule.RampUpStartTime.Hour, $schedule.RampUpStartTime.Minute } else { 'N/A' }
                             rampUpLoadBalancingAlgorithm = $schedule.RampUpLoadBalancingAlgorithm
                             rampUpMinimumHostsPct = $schedule.RampUpMinimumHostsPct
                             rampUpCapacityThresholdPct = $schedule.RampUpCapacityThresholdPct
-                            peakStartTime = if ($schedule.PeakStartTime) { $schedule.PeakStartTime.Hour.ToString('00') + ':' + $schedule.PeakStartTime.Minute.ToString('00') } else { 'N/A' }
+                            peakStartTime = if ($schedule.PeakStartTime) { "{0:D2}:{1:D2}" -f $schedule.PeakStartTime.Hour, $schedule.PeakStartTime.Minute } else { 'N/A' }
                             peakLoadBalancingAlgorithm = $schedule.PeakLoadBalancingAlgorithm
-                            rampDownStartTime = if ($schedule.RampDownStartTime) { $schedule.RampDownStartTime.Hour.ToString('00') + ':' + $schedule.RampDownStartTime.Minute.ToString('00') } else { 'N/A' }
+                            rampDownStartTime = if ($schedule.RampDownStartTime) { "{0:D2}:{1:D2}" -f $schedule.RampDownStartTime.Hour, $schedule.RampDownStartTime.Minute } else { 'N/A' }
                             rampDownLoadBalancingAlgorithm = $schedule.RampDownLoadBalancingAlgorithm
                             rampDownMinimumHostsPct = $schedule.RampDownMinimumHostsPct
                             rampDownCapacityThresholdPct = $schedule.RampDownCapacityThresholdPct
                             rampDownForceLogoffUser = $schedule.RampDownForceLogoffUser
                             rampDownWaitTimeMinute = $schedule.RampDownWaitTimeMinute
                             rampDownNotificationMessage = $schedule.RampDownNotificationMessage
-                            offPeakStartTime = if ($schedule.OffPeakStartTime) { $schedule.OffPeakStartTime.Hour.ToString('00') + ':' + $schedule.OffPeakStartTime.Minute.ToString('00') } else { 'N/A' }
+                            offPeakStartTime = if ($schedule.OffPeakStartTime) { "{0:D2}:{1:D2}" -f $schedule.OffPeakStartTime.Hour, $schedule.OffPeakStartTime.Minute } else { 'N/A' }
                             offPeakLoadBalancingAlgorithm = $schedule.OffPeakLoadBalancingAlgorithm
                         }
                     }
