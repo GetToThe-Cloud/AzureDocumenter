@@ -1,240 +1,433 @@
 # Azure Virtual Desktop Inventory Dashboard
 
-A comprehensive web-based dashboard for monitoring and managing your Azure Virtual Desktop (AVD) infrastructure in real-time.
+A comprehensive, production-ready web-based dashboard for documenting and monitoring your Azure Virtual Desktop (AVD) infrastructure. Built with PowerShell and modern web technologies, this tool provides real-time insights, detailed reporting, and professional PDF exports for your AVD environment.
 
-## 🌟 Features
+![Azure Virtual Desktop](https://img.shields.io/badge/Azure-Virtual_Desktop-0078D4?style=flat&logo=microsoft-azure)
+![PowerShell](https://img.shields.io/badge/PowerShell-7+-5391FE?style=flat&logo=powershell)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-- **Live Inventory View**: Real-time monitoring of your AVD environment
-- **Azure Authentication**: Automatic Azure connection check with device authentication support
-- **Interactive Navigation**: Category-based navigation for easy access to different resource types
-- **Visual Connection Diagram**: Interactive diagram showing relationships between AVD resources
-- **PDF Export**: Export complete inventory setup to PDF format
-- **Detailed Reporting**: Comprehensive information about:
-  - Host Pools
-  - Session Hosts
-  - Workspaces
-  - Application Groups
-  - Published Applications
-  - Session status and health
+## ✨ Key Features
+
+### 📊 Comprehensive Inventory Collection
+- **Host Pools**: Configuration, load balancing, session limits, registration tokens
+- **Session Hosts**: Status, sessions, network details, image source tracking, OS/agent versions
+- **Workspaces**: Friendly names, application group associations
+- **Application Groups**: Desktop and RemoteApp configurations with published applications
+- **Scaling Plans**: Automated capacity management with schedule details and time zones
+- **Virtual Networks**: Network connectivity and session host associations
+- **Compute Galleries**: Custom image repositories with version tracking and usage analytics
+
+### 🎨 Modern Web Interface
+- **Dark themed dashboard** with intuitive navigation
+- **Real-time status indicators** with color-coded badges
+- **Progress bar** for long-running operations
+- **Interactive controls** with manual refresh capability
+- **Responsive design** that works on desktop and tablet devices
+- **Category explanations** to help understand AVD components
+
+### 📄 Professional PDF Export
+- **Complete documentation** of your AVD infrastructure
+- **Detailed tables** with:
+  - Session hosts with IP addresses, image sources, OS versions, agent versions, and heartbeat status
+  - Host pool configurations with load balancing and session limits
+  - Scaling plan schedules with time zones and capacity thresholds
+  - Compute galleries with image definitions and version details
+  - Application groups with published applications
+  - Virtual networks with subnet configurations
+- **Color-coded status indicators** for availability and health
+- **Attribution footer** on every page
+- **Professional formatting** suitable for audits and documentation
+
+### 🔐 Secure Azure Integration
+- **Azure device authentication** flow
+- **Multi-subscription support** - automatically discovers all enabled subscriptions
+- **Read-only access** - no modifications to your environment
+- **Session-based authentication** - credentials managed by Azure PowerShell SDK
 
 ## 📋 Prerequisites
 
+### Required Software
 - **PowerShell 7+** ([Download](https://github.com/PowerShell/PowerShell))
-- **Azure PowerShell Modules**:
-  - Az.Accounts
-  - Az.DesktopVirtualization
-  - Az.Resources
-  - Az.Network
-  - Az.Compute
-- **Azure Subscription** with AVD resources
-- **Permissions**: Read access to AVD resources in your Azure subscription(s)
+  - Windows: Available via Microsoft Store or installer
+  - macOS: `brew install --cask powershell`
+  - Linux: Follow [official installation guide](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell)
+
+### Azure PowerShell Modules
+The following modules will be installed automatically on first run if not present:
+- `Az.Accounts` - Azure authentication and context management
+- `Az.DesktopVirtualization` - AVD resource management
+- `Az.Resources` - Resource group and subscription queries
+- `Az.Network` - Virtual network information
+- `Az.Compute` - Compute gallery and image definitions
+
+### Azure Requirements
+- **Azure Subscription** with Azure Virtual Desktop resources
+- **Permissions**: Reader role on AVD resources (minimum)
+- **Supported AVD Components**:
+  - Host Pools (Pooled and Personal)
+  - Session Hosts (Windows 10/11 multi-session, Windows Server)
+  - Application Groups (Desktop and RemoteApp)
+  - Workspaces
+  - Scaling Plans
+  - Compute Galleries
 
 ## 🚀 Quick Start
 
-### 1. Installation
+### 1. Clone or Download
+```bash
+git clone <repository-url>
+cd azurevirtualdesktop-inventory
+```
 
-The required Azure PowerShell modules will be installed automatically on first run if not present.
+### 2. Start the Server
 
-### 2. Starting the Server
+**On Windows (PowerShell):**
+```powershell
+.\Start-AVDInventoryServer.ps1
+```
 
-#### On macOS/Linux:
+**On macOS/Linux:**
 ```bash
 chmod +x start.sh
 ./start.sh
 ```
 
-#### On Windows (PowerShell):
+**Custom Port:**
 ```powershell
-.\Start-AVDInventoryServer.ps1 -Port 8080
+.\Start-AVDInventoryServer.ps1 -Port 3000
 ```
 
 ### 3. Access the Dashboard
 
-Open your web browser and navigate to:
+Open your web browser to:
 ```
 http://localhost:8080
 ```
 
-### 4. Authentication
+### 4. Authenticate with Azure
 
-If not already authenticated:
-1. Click "Sign in to Azure" button
-2. Follow the device authentication prompts in the server console
-3. Complete authentication in your browser
-4. Return to the dashboard - it will automatically refresh
+On first access:
+1. The server will detect you're not authenticated
+2. Click **"Sign in to Azure"** button
+3. Follow the device code authentication prompt in the server console
+4. Complete authentication in your browser using the provided code
+5. Return to the dashboard - inventory will load automatically
 
-## 📖 Usage
+The authentication session persists until the server is stopped or you clear your Azure context.
 
-### Navigation
+## 📖 Using the Dashboard
 
-The dashboard includes the following sections:
+### Navigation Sections
 
-- **📊 Overview**: Summary statistics and quick insights
-- **🏊 Host Pools**: Detailed information about AVD host pools
-- **💻 Session Hosts**: Status and health of individual session hosts
-- **📁 Workspaces**: Workspace configurations
-- **📦 Application Groups**: Application group details and published apps
-- **🔗 Connection Diagram**: Visual representation of resource relationships
+| Section | Description |
+|---------|-------------|
+| 📊 **Overview** | Summary statistics, total resources, health status |
+| 🏊 **Host Pools** | Configuration details, load balancing, session limits |
+| 💻 **Session Hosts** | VM status, sessions, network info, image sources |
+| 📁 **Workspaces** | User-facing resources and application group associations |
+| 📦 **Application Groups** | Desktop and RemoteApp configurations |
+| ⚖️ **Scaling Plans** | Automated start/stop schedules and capacity thresholds |
+| 🌐 **Virtual Networks** | Network connectivity and subnet details |
+| 🖼️ **Compute Galleries** | Custom images, versions, and usage tracking |
+| 🔗 **Connection Diagram** | Visual map of resource relationships (coming soon) |
 
-### Refreshing Data
+### Refreshing Inventory
 
-Click the **Refresh** button in the header to update the inventory data from Azure.
+Click the **🔄 Refresh** button in the header to manually update data from Azure.
+
+> **Note**: Auto-refresh is disabled to optimize performance. The inventory will remain static until you manually refresh.
 
 ### Exporting to PDF
 
-Click the **Export PDF** button to generate a comprehensive PDF report of your AVD infrastructure.
+1. Click the **📥 Export PDF** button
+2. Wait for the export to complete (progress bar shown)
+3. PDF will download automatically as `AVD-WAF-Assessment-YYYY-MM-DD.pdf`
+
+**PDF Contents:**
+- Complete inventory documentation
+- Detailed tables with filtering and formatting
+- Color-coded status indicators
+- Professional layout suitable for documentation and audits
+- Attribution footer with creation details
 
 ## 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────────────┐
-│         Web Browser (Client)                │
-│  ┌────────────────────────────────────────┐ │
-│  │  HTML + CSS + JavaScript (app.js)     │ │
-│  │  • Navigation                          │ │
-│  │  • Data visualization                  │ │
-│  │  • PDF export                          │ │
-│  │  • Network diagram (vis.js)            │ │
-│  └────────────────────────────────────────┘ │
-└─────────────────┬───────────────────────────┘
-                  │ HTTP REST API
-┌─────────────────▼───────────────────────────┐
-│   PowerShell Web Server                     │
-│  ┌────────────────────────────────────────┐ │
-│  │  Start-AVDInventoryServer.ps1          │ │
-│  │  • HTTP listener                       │ │
-│  │  • Route handling                      │ │
-│  │  • Authentication management           │ │
-│  └────────────────────────────────────────┘ │
-│  ┌────────────────────────────────────────┐ │
-│  │  Get-AVDInventory.ps1                  │ │
-│  │  • Inventory collection                │ │
-│  │  • Diagram generation                  │ │
-│  └────────────────────────────────────────┘ │
-└─────────────────┬───────────────────────────┘
-                  │ Azure PowerShell SDK
-┌─────────────────▼───────────────────────────┐
-│           Azure Cloud                       │
-│  • AVD Host Pools                           │
-│  • Session Hosts                            │
-│  • Workspaces                               │
-│  • Application Groups                       │
-└─────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│                   Web Browser (Client)                   │
+│  ┌────────────────────────────────────────────────────┐  │
+│  │  Frontend Application (HTML/CSS/JavaScript)        │  │
+│  │  • Dark-themed dashboard with navigation           │  │
+│  │  • Real-time data visualization                    │  │
+│  │  • PDF export with jsPDF + autoTable               │  │
+│  │  • Progress tracking and error handling            │  │
+│  │  • 10-minute timeout for large environments        │  │
+│  └────────────────────────────────────────────────────┘  │
+└──────────────────────┬───────────────────────────────────┘
+                       │ HTTP REST API (JSON)
+┌──────────────────────▼───────────────────────────────────┐
+│              PowerShell Web Server                       │
+│  ┌────────────────────────────────────────────────────┐  │
+│  │  Start-AVDInventoryServer.ps1                      │  │
+│  │  • HTTP listener on configurable port              │  │
+│  │  • Route handling and error recovery               │  │
+│  │  • Authentication session management               │  │
+│  │  • Static file serving (HTML, CSS, JS)             │  │
+│  └────────────────────────────────────────────────────┘  │
+│  ┌────────────────────────────────────────────────────┐  │
+│  │  Get-AVDInventory.ps1                              │  │
+│  │  • Multi-subscription inventory collection         │  │
+│  │  • Image source tracking and gallery enumeration   │  │
+│  │  • Network topology discovery                      │  │
+│  │  • Scaling plan schedule parsing with timezones    │  │
+│  └────────────────────────────────────────────────────┘  │
+└──────────────────────┬───────────────────────────────────┘
+                       │ Azure PowerShell SDK
+┌──────────────────────▼───────────────────────────────────┐
+│                    Azure Cloud                           │
+│  • Azure Virtual Desktop Resources                       │
+│  • Compute Galleries & Image Definitions                 │
+│  • Virtual Networks & Subnets                            │
+│  • Resource Groups & Subscriptions                       │
+└──────────────────────────────────────────────────────────┘
 ```
 
 ## 🔧 Configuration
 
-### Changing the Port
+### Server Port
 
-To use a different port:
-
-```bash
-./start.sh
-# Edit the script to change port, or:
-pwsh -File Start-AVDInventoryServer.ps1 -Port 3000
+Change the default port (8080) when starting:
+```powershell
+.\Start-AVDInventoryServer.ps1 -Port 9000
 ```
 
-### Auto-Refresh Interval
+### Timeout Settings
 
-The dashboard automatically checks authentication status and can be configured to auto-refresh. Edit `app.js`:
+For very large environments (1000+ session hosts), the timeout is set to 10 minutes. To adjust:
 
+Edit `app.js` line 99:
 ```javascript
-// Auto-refresh every 5 minutes (300000 ms)
-setInterval(checkAuthStatus, 300000);
+const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutes
 ```
 
-## 📊 API Endpoints
+### Theme Customization
 
-The server exposes the following REST API endpoints:
-
-- `GET /` - Main dashboard page
-- `GET /api/auth/status` - Check Azure authentication status
-- `POST /api/auth/login` - Initiate Azure login
-- `GET /api/inventory/data` - Retrieve AVD inventory data
-- `POST /api/inventory/refresh` - Force refresh inventory data
-- `GET /api/diagram/connections` - Get connection diagram data
+Edit `styles.css` to customize colors:
+```css
+:root {
+    --bg-primary: #1a1a2e;
+    --bg-secondary: #16213e;
+    --primary-color: #0078d4;
+    --secondary-color: #00bcf2;
+}
+```
 
 ## 🛠️ Troubleshooting
 
-### Module Installation Errors
+### Module Installation Fails
 
-If Azure modules fail to install automatically:
+**Problem**: Azure modules don't install automatically
 
+**Solution**:
 ```powershell
-Install-Module -Name Az.Accounts -Force -Scope CurrentUser
-Install-Module -Name Az.DesktopVirtualization -Force -Scope CurrentUser
-Install-Module -Name Az.Resources -Force -Scope CurrentUser
+# Install modules manually with elevated privileges
+Install-Module Az.Accounts -Force -Scope CurrentUser -AllowClobber
+Install-Module Az.DesktopVirtualization -Force -Scope CurrentUser
+Install-Module Az.Resources -Force -Scope CurrentUser
+Install-Module Az.Network -Force -Scope CurrentUser
+Install-Module Az.Compute -Force -Scope CurrentUser
 ```
 
-### Authentication Issues
+### Authentication Errors
 
-If authentication fails:
-1. Ensure you have appropriate permissions in Azure
-2. Check that your subscription is enabled
-3. Try clearing your Azure context:
+**Problem**: "Failed to authenticate" or "Access denied"
+
+**Solution**:
+1. Verify you have Reader permissions on AVD resources
+2. Check your Azure subscription is active and enabled
+3. Clear existing authentication:
    ```powershell
+   Disconnect-AzAccount
    Clear-AzContext -Force
    ```
+4. Restart the server and authenticate again
 
 ### Port Already in Use
 
-If port 8080 is already in use:
-```bash
-# Kill existing process
+**Problem**: Error: "Address already in use" on port 8080
+
+**Solution**:
+```powershell
+# Windows - Find and kill process on port 8080
+Get-Process -Name pwsh | Where-Object {$_.Path -like "*Start-AVDInventoryServer*"} | Stop-Process
+
+# macOS/Linux
 pkill -f "Start-AVDInventoryServer.ps1"
 
 # Or use a different port
-pwsh -File Start-AVDInventoryServer.ps1 -Port 8081
+.\Start-AVDInventoryServer.ps1 -Port 8081
 ```
 
-### No Data Showing
+### Inventory Collection Timeout
 
-1. Verify you are authenticated (check the banner at top of page)
-2. Ensure your account has read permissions for AVD resources
-3. Check browser console for errors (F12 → Console)
-4. Check server console for error messages
+**Problem**: "Request timed out after 10 minutes"
 
-## 🔒 Security Considerations
+**Cause**: Very large environment with 1000+ resources
 
-- The server runs on localhost by default (not exposed to network)
-- Azure credentials are managed through Azure PowerShell SDK
-- No credentials are stored in the application
-- Authentication uses Azure device code flow
-- All API calls require active Azure authentication
+**Solution**:
+1. Check the PowerShell console to see which subscription is slow
+2. Consider excluding certain subscriptions
+3. Check Azure service health for performance issues
+4. Contact support if specific resources are taking excessive time
+
+### No Data Displayed
+
+**Problem**: Dashboard loads but shows no resources
+
+**Checklist**:
+- ✅ Authenticated? Check the banner at top of page
+- ✅ Permissions? Verify Reader role on resource groups
+- ✅ AVD resources exist? Check Azure Portal
+- ✅ Correct subscription? Verify subscription name in banner
+- ✅ Browser console? Press F12 and check for JavaScript errors
+- ✅ Server console? Check PowerShell window for collection errors
+
+### Scaling Plan Times Show "N/A"
+
+**Problem**: Scaling plan schedules don't display start times
+
+**Solution**: This is a known issue with certain Azure PowerShell SDK versions. Update to latest:
+```powershell
+Update-Module Az.DesktopVirtualization -Force
+```
+
+## 📊 API Reference
+
+The web server exposes the following REST endpoints:
+
+| Method | Endpoint | Description | Response |
+|--------|----------|-------------|----------|
+| `GET` | `/` | Main dashboard HTML page | HTML document |
+| `GET` | `/api/auth/status` | Check Azure authentication status | `{authenticated: boolean, context: object}` |
+| `POST` | `/api/auth/login` | Initiate Azure device authentication | `{success: boolean, message: string}` |
+| `GET` | `/api/inventory/data` | Retrieve complete AVD inventory | JSON inventory data (see schema) |
+| `POST` | `/api/inventory/refresh` | Force refresh inventory from Azure | `{success: boolean, lastUpdate: string}` |
+| `GET` | `/app.js` | Client JavaScript application | JavaScript code |
+| `GET` | `/styles.css` | Dashboard stylesheet | CSS styles |
+
+### Inventory Data Schema
+
+```json
+{
+  "collectionTime": "2026-03-03T10:30:00Z",
+  "summary": {
+    "totalSubscriptions": 2,
+    "totalHostPools": 5,
+    "totalSessionHosts": 25,
+    "totalWorkspaces": 3,
+    "totalApplicationGroups": 8,
+    "totalScalingPlans": 2,
+    "totalVNets": 4,
+    "totalComputeGalleries": 1
+  },
+  "explanation": {
+    "overview": "...",
+    "hostPools": "...",
+    "sessionHosts": "..."
+  },
+  "subscriptions": [
+    {
+      "name": "Production",
+      "id": "sub-id",
+      "hostPools": [...],
+      "sessionHosts": [...],
+      "workspaces": [...],
+      "applicationGroups": [...],
+      "scalingPlans": [...],
+      "virtualNetworks": [...],
+      "computeGalleries": [...]
+    }
+  ]
+}
+```
+
+## 🔒 Security & Best Practices
+
+### Security Considerations
+- ✅ **Localhost only**: Server binds to `localhost` by default (not exposed to network)
+- ✅ **No credential storage**: Azure credentials managed entirely by Azure PowerShell SDK
+- ✅ **Device code auth**: Secure OAuth flow with Azure AD
+- ✅ **Read-only access**: No modification capabilities - inventory only
+- ✅ **Session-based**: Authentication tied to PowerShell session lifetime
+- ✅ **HTTPS compatible**: Can be proxied through HTTPS reverse proxy if needed
+
+### Recommended Access Roles
+- **Minimum**: `Reader` on target resource groups
+- **Recommended**: `Reader` at subscription level for complete inventory
+- **Not required**: Contributor, Owner, or any write permissions
+
+### Production Deployment
+For production use beyond localhost:
+
+1. **Use HTTPS**: Place behind reverse proxy (nginx, IIS, Azure App Gateway)
+2. **Add authentication**: Integrate with Azure AD, SAML, or other IdP
+3. **Enable logging**: Add application insights or log analytics
+4. **Set up monitoring**: Health checks and availability monitoring
+5. **Restrict access**: Limit IP ranges via firewall rules
 
 ## 📝 File Structure
 
 ```
 azurevirtualdesktop-inventory/
-├── Start-AVDInventoryServer.ps1  # Main web server
-├── Get-AVDInventory.ps1          # Inventory collection module
-├── index.html                    # Main HTML page
-├── styles.css                    # Styling
-├── app.js                        # Client-side JavaScript
-├── start.sh                      # Linux/macOS startup script
-└── README.md                     # This file
+├── Start-AVDInventoryServer.ps1  # Main web server (HTTP listener, routing)
+├── Get-AVDInventory.ps1          # Inventory collection module (Azure queries)
+├── index.html                    # Dashboard UI (structure)
+├── styles.css                    # Dark theme styling (colors, layouts)
+├── app.js                        # Client application (logic, PDF export)
+├── test.html                     # Diagnostic test page
+├── start.sh                      # Linux/macOS launcher script
+└── README.md                     # This documentation
 ```
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit issues or pull requests.
+
+**Areas for contribution:**
+- Multi-language support
+- Additional PDF export options
+- Custom filters and search
+- Performance optimizations for 1000+ session hosts
+- Additional data visualizations
+- Export to Excel/CSV formats
+- Connection diagram implementation
+
+## 📄 License
+
+This project is provided as-is under the MIT License for monitoring and documenting Azure Virtual Desktop environments.
 
 ## 👨‍💻 Author
 
 **Alex ter Neuzen**  
-🌐 [www.gettothe.cloud](https://www.gettothe.cloud)
+Cloud Solutions Architect | Azure Virtual Desktop Specialist
 
-## 🤝 Contributing
+🌐 Website: [www.gettothe.cloud](https://www.gettothe.cloud)  
+💼 LinkedIn: Connect for more Azure content  
+📝 Blog: AVD best practices, tips, and tutorials
 
-Feel free to submit issues or pull requests to improve this dashboard.
+## ✨ Credits & Acknowledgments
 
-## 📄 License
+Built with:
+- **PowerShell 7+** - Cross-platform automation framework
+- **Azure PowerShell SDK** - Azure resource management
+- **vis-network** ([visjs.org](https://visjs.org/)) - Network diagrams
+- **jsPDF** ([github.com/parallax/jsPDF](https://github.com/parallax/jsPDF)) - PDF generation
+- **jsPDF-AutoTable** - Table formatting in PDFs
 
-This project is provided as-is for monitoring Azure Virtual Desktop environments.
-
-## ✨ Credits
-
-- Built with PowerShell 7+
-- Visualization using [vis.js](https://visjs.org/)
-- PDF generation using [jsPDF](https://github.com/parallax/jsPDF)
-- Uses Azure PowerShell SDK
+Special thanks to the Azure Virtual Desktop community for feedback and feature requests.
 
 ---
 
-**Note**: This tool is designed for monitoring and reporting purposes. It does not make changes to your Azure environment.
+**Need help?** Check the troubleshooting section or visit [www.gettothe.cloud](https://www.gettothe.cloud) for more resources.
+
+**Found a bug?** Please report it with details about your environment and steps to reproduce.
