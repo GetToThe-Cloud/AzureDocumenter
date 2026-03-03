@@ -30,7 +30,15 @@ foreach ($module in $requiredModules) {
 
 # Import inventory collection module
 $inventoryModulePath = Join-Path $PSScriptRoot "Get-AVDInventory.ps1"
-. $inventoryModulePath
+Write-Host "📦 Loading inventory module from: $inventoryModulePath" -ForegroundColor Gray
+if (Test-Path $inventoryModulePath) {
+    . $inventoryModulePath
+    Write-Host "✅ Inventory module loaded successfully" -ForegroundColor Green
+    Write-Host "    Functions available: $(Get-Command Get-AVDInventoryData -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name)" -ForegroundColor Gray
+} else {
+    Write-Host "❌ Inventory module not found at: $inventoryModulePath" -ForegroundColor Red
+    exit 1
+}
 
 # Check Azure connection
 function Test-AzureConnection {
@@ -53,6 +61,14 @@ function Test-AzureConnection {
 $script:IsAuthenticated = Test-AzureConnection
 $script:InventoryData = @{}
 $script:LastUpdate = $null
+
+# Verify inventory function is available
+if (Get-Command Get-AVDInventoryData -ErrorAction SilentlyContinue) {
+    Write-Host "✅ Get-AVDInventoryData function is available" -ForegroundColor Green
+} else {
+    Write-Host "❌ Get-AVDInventoryData function not found! Server cannot collect inventory." -ForegroundColor Red
+    exit 1
+}
 
 Write-Host "🔐 Azure Authentication Status: $(if ($script:IsAuthenticated) { 'Connected ✓' } else { 'Not Connected ✗' })" -ForegroundColor $(if ($script:IsAuthenticated) { 'Green' } else { 'Yellow' })
 
@@ -167,6 +183,11 @@ try {
                         Write-Host "  📊 Collecting AVD inventory..." -ForegroundColor Cyan
                         Write-Host "  ⏱️  Start time: $(Get-Date -Format 'HH:mm:ss')" -ForegroundColor Gray
                         
+                        # Verify function exists before calling
+                        if (-not (Get-Command Get-AVDInventoryData -ErrorAction SilentlyContinue)) {
+                            throw "Get-AVDInventoryData function not found. The inventory module may not have loaded correctly."
+                        }
+                        
                         $script:InventoryData = Get-AVDInventoryData
                         
                         Write-Host "  ✅ Inventory collection complete" -ForegroundColor Green
@@ -180,6 +201,7 @@ try {
                     } catch {
                         Write-Host "  ❌ Error collecting inventory: $($_.Exception.Message)" -ForegroundColor Red
                         Write-Host "  📍 Stack trace: $($_.ScriptStackTrace)" -ForegroundColor Red
+                        Write-Host "  📍 Error details: $($_ | Format-List * -Force | Out-String)" -ForegroundColor Red
                         $content = @{ error = $_.Exception.Message; details = $_.ScriptStackTrace } | ConvertTo-Json
                     }
                 } else {
@@ -196,6 +218,11 @@ try {
                         Write-Host "  🔄 Refreshing AVD inventory..." -ForegroundColor Cyan
                         Write-Host "  ⏱️  Start time: $(Get-Date -Format 'HH:mm:ss')" -ForegroundColor Gray
                         
+                        # Verify function exists before calling
+                        if (-not (Get-Command Get-AVDInventoryData -ErrorAction SilentlyContinue)) {
+                            throw "Get-AVDInventoryData function not found. The inventory module may not have loaded correctly."
+                        }
+                        
                         $script:InventoryData = Get-AVDInventoryData
                         
                         Write-Host "  ✅ Inventory refresh complete" -ForegroundColor Green
@@ -206,6 +233,7 @@ try {
                     } catch {
                         Write-Host "  ❌ Error refreshing inventory: $($_.Exception.Message)" -ForegroundColor Red
                         Write-Host "  📍 Stack trace: $($_.ScriptStackTrace)" -ForegroundColor Red
+                        Write-Host "  📍 Error details: $($_ | Format-List * -Force | Out-String)" -ForegroundColor Red
                         $content = @{ success = $false; error = $_.Exception.Message; details = $_.ScriptStackTrace } | ConvertTo-Json
                     }
                 } else {
