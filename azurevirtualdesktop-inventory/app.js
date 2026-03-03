@@ -1,11 +1,14 @@
 // Azure Virtual Desktop Inventory - Client Application
 
+console.log('🚀 AVD Inventory app.js loaded - Version 2.0');
+
 let inventoryData = null;
 let diagramData = null;
 let network = null;
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('📄 DOM Content Loaded - Initializing app...');
     checkAuthStatus();
     // Auto-refresh every 5 minutes
     setInterval(checkAuthStatus, 300000);
@@ -14,7 +17,36 @@ document.addEventListener('DOMContentLoaded', () => {
 // Check authentication status
 async function checkAuthStatus() {
     try {
-        console.log('🔐 Checking Azure authentication status...');\n        const response = await fetch('/api/auth/status');\n        const data = await response.json();\n        \n        console.log('📡 Auth status response:', data);\n        \n        const authStatusDiv = document.getElementById('authStatus');\n        \n        if (data.authenticated) {\n            console.log('✅ Authenticated as:', data.context.account);\n            authStatusDiv.className = 'auth-status authenticated';\n            authStatusDiv.innerHTML = `✓ Connected to Azure as <strong>${data.context.account}</strong> | Subscription: <strong>${data.context.subscription}</strong>`;\n            \n            document.getElementById('authRequired').style.display = 'none';\n            await loadInventoryData();\n        } else {\n            console.log('⚠️ Not authenticated - requesting login');\n            authStatusDiv.className = 'auth-status not-authenticated';\n            authStatusDiv.innerHTML = '⚠ Not authenticated with Azure. Initiating login...';\n            \n            // Show authentication required UI\n            document.getElementById('authRequired').style.display = 'flex';\n            \n            // Automatically request Azure login\n            await requestAzureLogin();\n        }\n    } catch (error) {\n        console.error('❌ Error checking auth status:', error);\n    }\n}
+        console.log('🔐 Checking Azure authentication status...');
+        const response = await fetch('/api/auth/status');
+        const data = await response.json();
+        
+        console.log('📡 Auth status response:', data);
+        
+        const authStatusDiv = document.getElementById('authStatus');
+        
+        if (data.authenticated) {
+            console.log('✅ Authenticated as:', data.context.account);
+            authStatusDiv.className = 'auth-status authenticated';
+            authStatusDiv.innerHTML = `✓ Connected to Azure as <strong>${data.context.account}</strong> | Subscription: <strong>${data.context.subscription}</strong>`;
+            
+            document.getElementById('authRequired').style.display = 'none';
+            await loadInventoryData();
+        } else {
+            console.log('⚠️ Not authenticated - requesting login');
+            authStatusDiv.className = 'auth-status not-authenticated';
+            authStatusDiv.innerHTML = '⚠ Not authenticated with Azure. Initiating login...';
+            
+            // Show authentication required UI
+            document.getElementById('authRequired').style.display = 'flex';
+            
+            // Automatically request Azure login
+            await requestAzureLogin();
+        }
+    } catch (error) {
+        console.error('❌ Error checking auth status:', error);
+    }
+}
 
 // Request Azure login (with rate limiting to prevent multiple simultaneous requests)
 let loginInProgress = false;
@@ -138,7 +170,28 @@ async function loadInventoryData() {
 async function refreshInventory() {
     try {
         console.log('🔄 Manually refreshing inventory...');
-        showLoading('Refreshing inventory...');\n        updateLoadingProgress('Requesting fresh data from Azure...', 30);\n        \n        const response = await fetch('/api/inventory/refresh', { method: 'POST' });\n        const data = await response.json();\n        \n        console.log('📥 Refresh response:', data);\n        \n        if (data.success) {\n            updateLoadingProgress('Loading updated inventory...', 60);\n            await loadInventoryData();\n        } else {\n            console.error('❌ Refresh failed:', data.error);\n            alert('Failed to refresh inventory: ' + (data.error || 'Unknown error'));\n        }\n    } catch (error) {\n        console.error('❌ Error refreshing inventory:', error);\n        alert('Error refreshing inventory: ' + error.message);\n    } finally {\n        hideLoading();\n    }\n}
+        showLoading('Refreshing inventory...');
+        updateLoadingProgress('Requesting fresh data from Azure...', 30);
+        
+        const response = await fetch('/api/inventory/refresh', { method: 'POST' });
+        const data = await response.json();
+        
+        console.log('📥 Refresh response:', data);
+        
+        if (data.success) {
+            updateLoadingProgress('Loading updated inventory...', 60);
+            await loadInventoryData();
+        } else {
+            console.error('❌ Refresh failed:', data.error);
+            alert('Failed to refresh inventory: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('❌ Error refreshing inventory:', error);
+        alert('Error refreshing inventory: ' + error.message);
+    } finally {
+        hideLoading();
+    }
+}
 
 // Update last update time
 function updateLastUpdateTime() {
