@@ -305,7 +305,7 @@ function populatePolicies() {
                 <tr>
                     <td><strong>${displayName}</strong></td>
                     <td><span class="badge ${enforcementMode === 'Default' ? 'badge-success' : 'badge-warning'}">${enforcementMode}</span></td>
-                    <td><small>${truncate(scope, 60)}</small></td>
+                    <td><small title="${scope}">${truncate(scope, 80)}</small></td>
                     <td>${truncate(description, 80)}</td>
                 </tr>
             `;
@@ -327,7 +327,7 @@ function populateRoleAssignments() {
         <tr>
             <td><strong>${role.displayName || role.signInName || 'N/A'}</strong></td>
             <td>${role.roleDefinitionName || 'N/A'}</td>
-            <td><small>${truncate(role.scope, 60) || 'N/A'}</small></td>
+            <td><small title="${role.scope || 'N/A'}">${truncate(role.scope, 80) || 'N/A'}</small></td>
             <td>${role.objectType || 'N/A'}</td>
         </tr>
     `).join('');

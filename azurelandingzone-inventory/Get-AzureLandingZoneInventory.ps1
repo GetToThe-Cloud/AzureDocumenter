@@ -275,11 +275,31 @@ Move Strategy:
             $inventory.summary.totalPolicyDefinitions = $customPolicyDefs.Count
             
             foreach ($policy in $allPolicyDefs) {
+                # Try to get display name, falling back to name or a friendly message
+                $displayName = if ($policy.Properties.DisplayName) { 
+                    $policy.Properties.DisplayName 
+                } elseif ($policy.DisplayName) { 
+                    $policy.DisplayName 
+                } elseif ($policy.Name) { 
+                    $policy.Name 
+                } else { 
+                    'Unnamed Policy' 
+                }
+                
+                # Try to get policy type from multiple locations
+                $policyType = if ($policy.Properties.PolicyType) { 
+                    $policy.Properties.PolicyType 
+                } elseif ($policy.PolicyType) { 
+                    $policy.PolicyType 
+                } else { 
+                    'Custom' 
+                }
+                
                 $inventory.policies.definitions += @{
                     name = if ($policy.Name) { $policy.Name } else { 'Unknown' }
-                    displayName = if ($policy.Properties.DisplayName) { $policy.Properties.DisplayName } else { $policy.Name }
+                    displayName = $displayName
                     description = if ($policy.Properties.Description) { $policy.Properties.Description } else { 'No description available' }
-                    policyType = if ($policy.Properties.PolicyType) { $policy.Properties.PolicyType } else { 'Unknown' }
+                    policyType = $policyType
                     mode = if ($policy.Properties.Mode) { $policy.Properties.Mode } else { 'All' }
                     metadata = $policy.Properties.Metadata
                 }
@@ -299,11 +319,31 @@ Move Strategy:
             $inventory.summary.totalPolicyInitiatives = $customInitiatives.Count
             
             foreach ($initiative in $allInitiatives) {
+                # Try to get display name from multiple locations
+                $displayName = if ($initiative.Properties.DisplayName) { 
+                    $initiative.Properties.DisplayName 
+                } elseif ($initiative.DisplayName) { 
+                    $initiative.DisplayName
+                } elseif ($initiative.Name) { 
+                    $initiative.Name 
+                } else { 
+                    'Unnamed Initiative' 
+                }
+                
+                # Try to get policy type from multiple possible locations
+                $policyType = if ($initiative.Properties.PolicyType) { 
+                    $initiative.Properties.PolicyType 
+                } elseif ($initiative.PolicyType) { 
+                    $initiative.PolicyType 
+                } else { 
+                    'BuiltIn' 
+                }
+                
                 $inventory.policies.initiatives += @{
                     name = if ($initiative.Name) { $initiative.Name } else { 'Unknown' }
-                    displayName = if ($initiative.Properties.DisplayName) { $initiative.Properties.DisplayName } else { $initiative.Name }
+                    displayName = $displayName
                     description = if ($initiative.Properties.Description) { $initiative.Properties.Description } else { 'No description available' }
-                    policyType = if ($initiative.Properties.PolicyType) { $initiative.Properties.PolicyType } else { 'Unknown' }
+                    policyType = $policyType
                     metadata = $initiative.Properties.Metadata
                     policyDefinitions = @($initiative.Properties.PolicyDefinitions | ForEach-Object {
                         @{
@@ -330,12 +370,32 @@ Move Strategy:
                     $policyName = Split-Path $assignment.Properties.PolicyDefinitionId -Leaf
                 }
                 
+                # Try to get display name from multiple locations
+                $displayName = if ($assignment.Properties.DisplayName) { 
+                    $assignment.Properties.DisplayName 
+                } elseif ($assignment.DisplayName) { 
+                    $assignment.DisplayName 
+                } elseif ($assignment.Name) { 
+                    $assignment.Name 
+                } else { 
+                    "Assignment of $policyName" 
+                }
+                
+                # Try to get scope from multiple possible locations
+                $assignmentScope = if ($assignment.Properties.Scope) { 
+                    $assignment.Properties.Scope 
+                } elseif ($assignment.Scope) { 
+                    $assignment.Scope 
+                } else { 
+                    'Not specified' 
+                }
+                
                 $inventory.policies.assignments += @{
                     name = if ($assignment.Name) { $assignment.Name } else { 'Unknown' }
-                    displayName = if ($assignment.Properties.DisplayName) { $assignment.Properties.DisplayName } else { $assignment.Name }
+                    displayName = $displayName
                     description = if ($assignment.Properties.Description) { $assignment.Properties.Description } else { "Assignment of $policyName" }
                     enforcementMode = if ($assignment.Properties.EnforcementMode) { $assignment.Properties.EnforcementMode } else { 'Default' }
-                    scope = if ($assignment.Properties.Scope) { $assignment.Properties.Scope } else { 'Unknown' }
+                    scope = $assignmentScope
                     policyDefinitionId = $assignment.Properties.PolicyDefinitionId
                     policyName = $policyName
                     parameters = $assignment.Properties.Parameters
