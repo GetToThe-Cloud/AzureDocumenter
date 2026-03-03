@@ -122,20 +122,34 @@ function Get-AVDInventoryData {
                         $networkInfo = $null
                         $imageInfo = $null
                         try {
+                            # First try the host pool resource group
                             $vm = Get-AzVM -Name $vmName -ResourceGroupName $hpData.resourceGroup -ErrorAction SilentlyContinue
+                            
+                            # If not found, search all resource groups in the subscription
+                            if (-not $vm) {
+                                Write-Host "      Searching for VM $vmName in other resource groups..." -ForegroundColor Gray
+                                $allVMs = Get-AzVM -ErrorAction SilentlyContinue | Where-Object { $_.Name -eq $vmName }
+                                if ($allVMs -and $allVMs.Count -gt 0) {
+                                    $vm = $allVMs[0]
+                                    Write-Host "      Found VM in resource group: $($vm.ResourceGroupName)" -ForegroundColor Green
+                                }
+                            }
+                            
                             if ($vm) {
                                 # Network information
-                                $nic = Get-AzNetworkInterface -ResourceId $vm.NetworkProfile.NetworkInterfaces[0].Id -ErrorAction SilentlyContinue
-                                if ($nic) {
-                                    $vnetId = $nic.IpConfigurations[0].Subnet.Id
-                                    $vnetName = $vnetId.Split('/')[8]
-                                    $subnetName = $vnetId.Split('/')[10]
-                                    $networkInfo = @{
-                                        vnetName = $vnetName
-                                        subnetName = $subnetName
-                                        privateIP = $nic.IpConfigurations[0].PrivateIpAddress
-                                        vnetResourceGroup = $vnetId.Split('/')[4]
-                                        vnetId = $vnetId
+                                if ($vm.NetworkProfile.NetworkInterfaces -and $vm.NetworkProfile.NetworkInterfaces.Count -gt 0) {
+                                    $nic = Get-AzNetworkInterface -ResourceId $vm.NetworkProfile.NetworkInterfaces[0].Id -ErrorAction SilentlyContinue
+                                    if ($nic -and $nic.IpConfigurations -and $nic.IpConfigurations.Count -gt 0) {
+                                        $vnetId = $nic.IpConfigurations[0].Subnet.Id
+                                        $vnetName = $vnetId.Split('/')[8]
+                                        $subnetName = $vnetId.Split('/')[10]
+                                        $networkInfo = @{
+                                            vnetName = $vnetName
+                                            subnetName = $subnetName
+                                            privateIP = $nic.IpConfigurations[0].PrivateIpAddress
+                                            vnetResourceGroup = $vnetId.Split('/')[4]
+                                            vnetId = $vnetId
+                                        }
                                     }
                                 }
                                 
@@ -158,10 +172,12 @@ function Get-AVDInventoryData {
                                         version = $vm.StorageProfile.ImageReference.Version
                                     }
                                 }
+                            } else {
+                                Write-Host "      ⚠ Could not find VM: $vmName" -ForegroundColor Yellow
                             }
                         }
                         catch {
-                            # Silently continue if VM info cannot be retrieved
+                            Write-Host "      ⚠ Error retrieving VM info for $vmName : $($_.Exception.Message)" -ForegroundColor Yellow
                         }
                         
                         $shData = @{

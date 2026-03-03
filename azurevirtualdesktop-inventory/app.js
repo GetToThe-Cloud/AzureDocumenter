@@ -1847,7 +1847,7 @@ async function exportToPDF() {
                     yPos += 3;
                 }
                 
-                // Session Hosts Detail - Enhanced
+                // Session Hosts Detail - Table Format
                 if (sub.hostPools.length > 0) {
                     const allSessionHosts = sub.hostPools.flatMap(hp => 
                         (hp.sessionHosts || []).map(sh => ({...sh, hostPoolName: hp.name, hostPoolType: hp.hostPoolType}))
@@ -1858,86 +1858,61 @@ async function exportToPDF() {
                             yPos = 20;
                         }
                         
-                        addText('Session Hosts (Detailed):', 11, true);
-                        const displayLimit = 30; // Show up to 30 session hosts with details
-                        allSessionHosts.slice(0, displayLimit).forEach(sh => {
-                            if (yPos > pageHeight - 50) {
-                                pdf.addPage();
-                                yPos = 20;
-                            }
-                            
-                            // Session Host Name
-                            pdf.setFont(undefined, 'bold');
-                            addBullet(`${sh.name}`, 0);
-                            pdf.setFont(undefined, 'normal');
-                            
-                            // Host Pool and Status
-                            addBullet(`Host Pool: ${sh.hostPoolName} (${sh.hostPoolType})`, 5);
-                            const statusIndicator = sh.status === 'Available' ? '[+]' : '[-]';
-                            addBullet(`Status: ${sh.status} ${statusIndicator}`, 5);
-                            
-                            // Session Information
-                            if (sh.sessions > 0) {
-                                addBullet(`Sessions: ${sh.sessions} total (${sh.activeSessions || 0} active, ${sh.disconnectedSessions || 0} disconnected)`, 5);
-                            } else {
-                                addBullet(`Sessions: 0 (no active users)`, 5);
-                            }
-                            
-                            const newSessionStatus = sh.allowNewSession ? 'Allowed' : 'Blocked';
-                            addBullet(`New Sessions: ${newSessionStatus}`, 5);
-                            
-                            // Assigned User (for Personal desktops)
-                            if (sh.assignedUser) {
-                                addBullet(`Assigned User: ${sh.assignedUser}`, 5);
-                            }
-                            
-                            // Agent Information
-                            if (sh.agentVersion) {
-                                addBullet(`Agent Version: ${sh.agentVersion}`, 5);
-                            }
-                            
-                            if (sh.osVersion) {
-                                addBullet(`OS Version: ${sh.osVersion}`, 5);
-                            }
-                            
-                            // Last Heartbeat
-                            if (sh.lastHeartBeat) {
-                                try {
-                                    const lastHeartbeat = new Date(sh.lastHeartBeat);
-                                    addBullet(`Last Heartbeat: ${lastHeartbeat.toLocaleString()}`, 5);
-                                } catch (e) {
-                                    // Skip if date parsing fails
-                                }
-                            }
-                            
-                            // Update State
-                            if (sh.updateState) {
-                                addBullet(`Update State: ${sh.updateState}`, 5);
-                            }
-                            
-                            // Network Information
-                            if (sh.network) {
-                                addBullet(`Network: ${sh.network.vnetName}/${sh.network.subnetName}`, 5);
-                                if (sh.network.privateIP) {
-                                    addBullet(`Private IP: ${sh.network.privateIP}`, 10);
-                                }
-                            }
-                            
-                            // Image Information
-                            if (sh.image) {
-                                if (sh.image.type === 'Gallery') {
-                                    addBullet(`Image: Gallery - ${sh.image.imageName} (${sh.image.version})`, 5);
-                                } else if (sh.image.type === 'Marketplace') {
-                                    addBullet(`Image: Marketplace - ${sh.image.publisher}/${sh.image.offer}/${sh.image.sku}`, 5);
-                                }
-                            }
-                            
-                            yPos += 2;
-                        });
-                        if (allSessionHosts.length > displayLimit) {
-                            addBullet(`... and ${allSessionHosts.length - displayLimit} more session hosts (summary view only)`, 0);
-                        }
+                        addText('Session Hosts:', 11, true);
                         yPos += 3;
+                        
+                        // Prepare session host table data
+                        const sessionHostTableData = allSessionHosts.map(sh => {
+                            const status = sh.status === 'Available' ? 'Available' : sh.status;
+                            const sessions = sh.sessions > 0 ? `${sh.sessions} (${sh.activeSessions || 0}A/${sh.disconnectedSessions || 0}D)` : '0';
+                            const network = sh.network && sh.network.vnetName ? `${sh.network.vnetName}` : 'N/A';
+                            const privateIP = sh.network && sh.network.privateIP ? sh.network.privateIP : 'N/A';
+                            const assignedUser = sh.assignedUser || '-';
+                            
+                            return [
+                                sh.name.length > 30 ? sh.name.substring(0, 27) + '...' : sh.name,
+                                sh.hostPoolName.length > 25 ? sh.hostPoolName.substring(0, 22) + '...' : sh.hostPoolName,
+                                status,
+                                sessions,
+                                network.length > 20 ? network.substring(0, 17) + '...' : network,
+                                privateIP
+                            ];
+                        });
+                        
+                        pdf.autoTable({
+                            startY: yPos,
+                            head: [['Session Host', 'Host Pool', 'Status', 'Sessions', 'VNet', 'Private IP']],
+                            body: sessionHostTableData,
+                            theme: 'grid',
+                            headStyles: { fillColor: [0, 120, 212], fontSize: 8, fontStyle: 'bold' },
+                            bodyStyles: { fontSize: 7 },
+                            margin: { left: margin, right: margin },
+                            columnStyles: {
+                                0: { cellWidth: 52 },
+                                1: { cellWidth: 40 },
+                                2: { cellWidth: 22 },
+                                3: { cellWidth: 20 },
+                                4: { cellWidth: 30 },
+                                5: { cellWidth: 24 }
+                            },
+                            didParseCell: function(data) {
+                                // Color code status column
+                                if (data.column.index === 2 && data.section === 'body') {
+                                    const status = data.cell.raw;
+                                    if (status === 'Available') {
+                                        data.cell.styles.textColor = [16, 124, 16];
+                                        data.cell.styles.fontStyle = 'bold';
+                                    } else {
+                                        data.cell.styles.textColor = [220, 53, 69];
+                                    }
+                                }
+                                // Highlight N/A values
+                                if (data.section === 'body' && (data.cell.raw === 'N/A' || data.cell.raw === '-')) {
+                                    data.cell.styles.textColor = [150, 150, 150];
+                                }
+                            }
+                        });
+                        yPos = pdf.lastAutoTable.finalY + 5;
                     }
                 }
                 
@@ -1989,82 +1964,119 @@ async function exportToPDF() {
                     yPos += 3;
                 }
                 
-                // Application Groups - Enhanced Details
+                // Application Groups - Table Format
                 if (sub.applicationGroups.length > 0) {
                     if (yPos > pageHeight - 30) {
                         pdf.addPage();
                         yPos = 20;
                     }
                     addText('Application Groups:', 11, true);
+                    yPos += 3;
                     
-                    sub.applicationGroups.forEach(ag => {
-                        if (yPos > pageHeight - 60) {
+                    // Main Application Groups Table
+                    const appGroupTableData = sub.applicationGroups.map(ag => {
+                        const hpName = ag.hostPoolArmPath ? ag.hostPoolArmPath.split('/').pop() : 'Not assigned';
+                        const wsName = ag.workspaceArmPath ? ag.workspaceArmPath.split('/').pop() : 'Not assigned';
+                        const appCount = ag.applications && ag.applications.length > 0 ? ag.applications.length : '0';
+                        
+                        return [
+                            ag.name.length > 35 ? ag.name.substring(0, 32) + '...' : ag.name,
+                            ag.applicationGroupType,
+                            hpName.length > 25 ? hpName.substring(0, 22) + '...' : hpName,
+                            wsName.length > 25 ? wsName.substring(0, 22) + '...' : wsName,
+                            ag.applicationGroupType === 'RemoteApp' ? appCount : 'N/A',
+                            ag.location
+                        ];
+                    });
+                    
+                    pdf.autoTable({
+                        startY: yPos,
+                        head: [['Name', 'Type', 'Host Pool', 'Workspace', 'Apps', 'Location']],
+                        body: appGroupTableData,
+                        theme: 'grid',
+                        headStyles: { fillColor: [0, 120, 212], fontSize: 8, fontStyle: 'bold' },
+                        bodyStyles: { fontSize: 7 },
+                        margin: { left: margin, right: margin },
+                        columnStyles: {
+                            0: { cellWidth: 48 },
+                            1: { cellWidth: 24, halign: 'center' },
+                            2: { cellWidth: 36 },
+                            3: { cellWidth: 36 },
+                            4: { cellWidth: 16, halign: 'center' },
+                            5: { cellWidth: 28 }
+                        },
+                        didParseCell: function(data) {
+                            // Highlight Not assigned values
+                            if (data.section === 'body' && data.cell.raw.includes('Not assigned')) {
+                                data.cell.styles.textColor = [220, 53, 69];
+                            }
+                            // Highlight N/A
+                            if (data.section === 'body' && data.cell.raw === 'N/A') {
+                                data.cell.styles.textColor = [150, 150, 150];
+                            }
+                        }
+                    });
+                    yPos = pdf.lastAutoTable.finalY + 5;
+                    
+                    // Published Applications Details (for RemoteApp groups with apps)
+                    const remoteAppGroups = sub.applicationGroups.filter(ag => 
+                        ag.applicationGroupType === 'RemoteApp' && ag.applications && ag.applications.length > 0
+                    );
+                    
+                    if (remoteAppGroups.length > 0) {
+                        if (yPos > pageHeight - 30) {
                             pdf.addPage();
                             yPos = 20;
                         }
                         
-                        // Application Group Name
+                        pdf.setFontSize(10);
                         pdf.setFont(undefined, 'bold');
-                        addBullet(`${ag.name}`, 0);
+                        pdf.text('Published Applications:', margin, yPos);
+                        yPos += 5;
                         pdf.setFont(undefined, 'normal');
                         
-                        // Friendly Name
-                        if (ag.friendlyName) {
-                            addBullet(`Friendly Name: ${ag.friendlyName}`, 5);
-                        }
-                        
-                        // Basic Configuration
-                        addBullet(`Type: ${ag.applicationGroupType}`, 5);
-                        addBullet(`Location: ${ag.location} | Resource Group: ${ag.resourceGroup}`, 5);
-                        
-                        // Host Pool Assignment
-                        if (ag.hostPoolArmPath) {
-                            const hpName = ag.hostPoolArmPath.split('/').pop();
-                            addBullet(`Host Pool: ${hpName}`, 5);
-                        }
-                        
-                        // Workspace Assignment
-                        if (ag.workspaceArmPath) {
-                            const wsName = ag.workspaceArmPath.split('/').pop();
-                            addBullet(`Workspace: ${wsName}`, 5);
-                        } else {
-                            addBullet(`Workspace: Not assigned [-]`, 5);
-                        }
-                        
-                        // Applications (for RemoteApp type)
-                        if (ag.applicationGroupType === 'RemoteApp') {
-                            if (ag.applications && ag.applications.length > 0) {
-                                addBullet(`Published Applications: ${ag.applications.length}`, 5);
-                                
-                                ag.applications.forEach(app => {
-                                    if (yPos > pageHeight - 25) {
-                                        pdf.addPage();
-                                        yPos = 20;
-                                    }
-                                    
-                                    const appDisplayName = app.friendlyName || app.name;
-                                    addBullet(`- ${appDisplayName}`, 10);
-                                    
-                                    if (app.filePath) {
-                                        addBullet(`Path: ${app.filePath}`, 15);
-                                    }
-                                    
-                                    if (app.commandLineSetting) {
-                                        addBullet(`Command Line: ${app.commandLineSetting}`, 15);
-                                    }
-                                    
-                                    const portalStatus = app.showInPortal ? 'Yes' : 'No';
-                                    addBullet(`Show in Portal: ${portalStatus}`, 15);
-                                });
-                            } else {
-                                addBullet(`Published Applications: 0 (no apps configured) [-]`, 5);
+                        remoteAppGroups.forEach(ag => {
+                            if (yPos > pageHeight - 40) {
+                                pdf.addPage();
+                                yPos = 20;
                             }
-                        } else {
-                            addBullet(`Type: Desktop (full desktop access)`, 5);
-                        }
-                        
-                        yPos += 2;
-                    });
+                            
+                            pdf.setFontSize(9);
+                            pdf.setFont(undefined, 'bold');
+                            pdf.text(ag.name, margin + 2, yPos);
+                            yPos += 4;
+                            pdf.setFont(undefined, 'normal');
+                            
+                            const appTableData = ag.applications.map(app => {
+                                const appName = app.friendlyName || app.name;
+                                const filePath = app.filePath || 'Not specified';
+                                const showInPortal = app.showInPortal ? 'Yes' : 'No';
+                                
+                                return [
+                                    appName.length > 30 ? appName.substring(0, 27) + '...' : appName,
+                                    filePath.length > 60 ? filePath.substring(0, 57) + '...' : filePath,
+                                    showInPortal
+                                ];
+                            });
+                            
+                            pdf.autoTable({
+                                startY: yPos,
+                                head: [['Application', 'File Path', 'Portal']],
+                                body: appTableData,
+                                theme: 'striped',
+                                headStyles: { fillColor: [41, 128, 185], fontSize: 7 },
+                                bodyStyles: { fontSize: 7 },
+                                margin: { left: margin + 5, right: margin },
+                                columnStyles: {
+                                    0: { cellWidth: 42 },
+                                    1: { cellWidth: 90 },
+                                    2: { cellWidth: 18, halign: 'center' }
+                                }
+                            });
+                            yPos = pdf.lastAutoTable.finalY + 5;
+                        });
+                    }
+                    
                     yPos += 3;
                 }
                 
@@ -2244,20 +2256,20 @@ async function exportToPDF() {
                                 
                                 pdf.autoTable({
                                     startY: yPos,
-                                    head: [['Phase', 'Start Time', 'Load Balancing', 'Min Hosts', 'Capacity %', 'Extra']],
+                                    head: [['Phase', 'Start', 'Load Balancing', 'Min %', 'Cap %', 'Extra']],
                                     body: phasesData,
                                     theme: 'grid',
                                     headStyles: { fillColor: [0, 120, 212], fontSize: 7 },
                                     bodyStyles: { fontSize: 7 },
                                     margin: { left: margin + 5, right: margin },
-                                    tableWidth: 'auto',
+                                    tableWidth: 'wrap',
                                     columnStyles: {
-                                        0: { cellWidth: 25, fontStyle: 'bold' },
-                                        1: { cellWidth: 22 },
-                                        2: { cellWidth: 35 },
-                                        3: { cellWidth: 22 },
-                                        4: { cellWidth: 22 },
-                                        5: { cellWidth: 44 }
+                                        0: { cellWidth: 24, fontStyle: 'bold' },
+                                        1: { cellWidth: 18, halign: 'center' },
+                                        2: { cellWidth: 32 },
+                                        3: { cellWidth: 16, halign: 'center' },
+                                        4: { cellWidth: 16, halign: 'center' },
+                                        5: { cellWidth: 64 }
                                     }
                                 });
                                 yPos = pdf.lastAutoTable.finalY + 5;
