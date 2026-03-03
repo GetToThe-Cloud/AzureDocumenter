@@ -591,7 +591,7 @@ function showSection(sectionId) {
     });
 }
 
-// Export to PDF with detailed descriptions
+// Export to PDF with comprehensive details and WAF assessment
 async function exportToPDF() {
     const btn = document.getElementById('exportBtn');
     btn.disabled = true;
@@ -602,15 +602,16 @@ async function exportToPDF() {
         const pdf = new jsPDF('p', 'mm', 'a4');
         
         let yPos = 20;
-        const lineHeight = 7;
+        const lineHeight = 6;
         const pageHeight = 280;
         const margin = 20;
         const maxWidth = 170;
         
         // Helper function to add text with word wrap
-        function addText(text, fontSize = 10, isBold = false) {
+        function addText(text, fontSize = 10, isBold = false, color = [0, 0, 0]) {
             pdf.setFontSize(fontSize);
             pdf.setFont(undefined, isBold ? 'bold' : 'normal');
+            pdf.setTextColor(...color);
             
             const lines = pdf.splitTextToSize(text, maxWidth);
             lines.forEach(line => {
@@ -621,203 +622,814 @@ async function exportToPDF() {
                 pdf.text(line, margin, yPos);
                 yPos += lineHeight;
             });
+            pdf.setTextColor(0, 0, 0);
         }
         
         function addSection(title, text) {
+            if (yPos > pageHeight - 30) {
+                pdf.addPage();
+                yPos = 20;
+            }
             yPos += 5;
-            addText(title, 14, true);
+            addText(title, 14, true, [0, 120, 212]);
             yPos += 2;
             addText(text, 10, false);
             yPos += 5;
         }
         
-        // Title
-        pdf.setFontSize(20);
-        pdf.setFont(undefined, 'bold');
-        pdf.text('Azure Landing Zone Inventory', margin, yPos);
-        yPos += 10;
-        
-        pdf.setFontSize(10);
-        pdf.setFont(undefined, 'normal');
-        pdf.text(`Generated: ${new Date().toLocaleString()}`, margin, yPos);
-        yPos += 15;
-        
-        // Overview
-        if (inventoryData.explanations) {
-            addSection('Overview', inventoryData.explanations.overview);
-            
-            // Summary
-            addText('Summary Statistics:', 12, true);
-            yPos += 2;
-            const summary = inventoryData.summary || {};
-            addText(`• Management Groups: ${summary.totalManagementGroups || 0}`);
-            addText(`• Subscriptions: ${summary.totalSubscriptions || 0}`);
-            addText(`• Policy Definitions: ${summary.totalPolicyDefinitions || 0}`);
-            addText(`• Policy Initiatives: ${summary.totalPolicyInitiatives || 0}`);
-            addText(`• Policy Assignments: ${summary.totalPolicyAssignments || 0}`);
-            addText(`• Role Assignments: ${summary.totalRoleAssignments || 0}`);
-            addText(`• Virtual Networks: ${summary.totalVNets || 0}`);
-            addText(`• VNet Peerings: ${summary.totalPeerings || 0}`);
-            addText(`• Budgets: ${summary.totalBudgets || 0}`);
-            addText(`• Resource Locks: ${summary.totalLocks || 0}`);
-            yPos += 10;
-            
-            // Cloud Adoption Framework Best Practices Assessment
-            if (inventoryData.bestPractices) {
+        function addSubSection(title) {
+            if (yPos > pageHeight - 20) {
                 pdf.addPage();
                 yPos = 20;
+            }
+            yPos += 3;
+            addText(title, 11, true, [0, 120, 212]);
+            yPos += 2;
+        }
+        
+        function addBullet(text, indent = 0) {
+            if (yPos > pageHeight - 10) {
+                pdf.addPage();
+                yPos = 20;
+            }
+            const bulletMargin = margin + indent;
+            pdf.text('•', bulletMargin, yPos);
+            const lines = pdf.splitTextToSize(text, maxWidth - indent - 5);
+            lines.forEach((line, idx) => {
+                pdf.text(line, bulletMargin + 5, yPos);
+                if (idx < lines.length - 1) yPos += lineHeight;
+            });
+            yPos += lineHeight;
+        }
+        
+        function getScoreColor(percentage) {
+            if (percentage >= 80) return [16, 185, 129];  // Green
+            if (percentage >= 60) return [245, 158, 11];  // Orange
+            if (percentage >= 40) return [251, 146, 60];  // Light orange
+            return [239, 68, 68];  // Red
+        }
+        
+        function getStatusEmoji(status) {
+            switch(status) {
+                case 'excellent': return '🟢';
+                case 'good': return '🟡';
+                case 'fair': return '🟠';
+                case 'needs-improvement': return '🔴';
+                default: return '⚪';
+            }
+        }
+        
+        // Cover Page
+        pdf.setFontSize(24);
+        pdf.setFont(undefined, 'bold');
+        pdf.setTextColor(0, 120, 212);
+        pdf.text('Azure Landing Zone', margin, yPos);
+        yPos += 10;
+        pdf.text('Assessment Report', margin, yPos);
+        yPos += 20;
+        
+        pdf.setFontSize(12);
+        pdf.setFont(undefined, 'normal');
+        pdf.setTextColor(0, 0, 0);
+        pdf.text(`Generated: ${new Date().toLocaleString()}`, margin, yPos);
+        yPos += 8;
+        pdf.text(`Tenant ID: ${inventoryData.tenantId || 'N/A'}`, margin, yPos);
+        yPos += 8;
+        
+        const summary = inventoryData.summary || {};
+        pdf.text(`Total Subscriptions: ${summary.totalSubscriptions || 0}`, margin, yPos);
+        yPos += 6;
+        pdf.text(`Total Resources Analyzed: Management Groups, Policies, Networks, Governance`, margin, yPos);
+        yPos += 15;
+        
+        pdf.setFontSize(10);
+        pdf.setFont(undefined, 'italic');
+        addText('This report provides a comprehensive assessment of your Azure Landing Zone implementation against Microsoft Cloud Adoption Framework (CAF) and Well-Architected Framework (WAF) best practices.');
+        yPos += 10;
+        
+        // === PAGE 2: Executive Summary ===
+        pdf.addPage();
+        yPos = 20;
+        
+        addText('EXECUTIVE SUMMARY', 16, true, [0, 120, 212]);
+        yPos += 5;
+        
+        if (inventoryData.explanations) {
+            addText(inventoryData.explanations.overview, 10, false);
+            yPos += 5;
+        }
+        
+        // Tenant Information
+        addSubSection('Tenant Overview');
+        addBullet(`Tenant ID: ${inventoryData.tenantId || 'Not available'}`);
+        addBullet(`Collection Time: ${new Date(inventoryData.collectionTime).toLocaleString()}`);
+        addBullet(`Management Groups: ${summary.totalManagementGroups || 0}`);
+        addBullet(`Active Subscriptions: ${summary.totalSubscriptions || 0}`);
+        yPos += 5;
+        
+        // Resource Summary
+        addSubSection('Resource Inventory Summary');
+        addBullet(`Policy Definitions: ${summary.totalPolicyDefinitions || 0}`);
+        addBullet(`Policy Initiatives (Sets): ${summary.totalPolicyInitiatives || 0}`);
+        addBullet(`Policy Assignments: ${summary.totalPolicyAssignments || 0}`);
+        addBullet(`RBAC Role Assignments: ${summary.totalRoleAssignments || 0}`);
+        addBullet(`Virtual Networks: ${summary.totalVNets || 0}`);
+        addBullet(`VNet Peerings: ${summary.totalPeerings || 0}`);
+        addBullet(`Azure Firewalls: ${inventoryData.networking?.firewalls?.length || 0}`);
+        addBullet(`VPN Gateways: ${inventoryData.networking?.vpnGateways?.length || 0}`);
+        addBullet(`Network Security Groups: ${inventoryData.networking?.networkSecurityGroups?.length || 0}`);
+        addBullet(`Cost Management Budgets: ${summary.totalBudgets || 0}`);
+        addBullet(`Resource Locks: ${summary.totalLocks || 0}`);
+        addBullet(`Virtual Machines: ${summary.totalVMs || 0}`);
+        yPos += 10;
+        
+        // === CAF COMPLIANCE ASSESSMENT ===
+        if (inventoryData.bestPractices) {
+            pdf.addPage();
+            yPos = 20;
+            
+            addText('CLOUD ADOPTION FRAMEWORK ASSESSMENT', 16, true, [0, 120, 212]);
+            yPos += 5;
+            
+            const bp = inventoryData.bestPractices;
+            const overallColor = getScoreColor(bp.overallPercentage);
+            
+            // Overall Score Box
+            pdf.setDrawColor(180, 180, 180);
+            pdf.setFillColor(245, 248, 250);
+            pdf.rect(margin, yPos, maxWidth, 25, 'FD');
+            yPos += 7;
+            
+            pdf.setFontSize(14);
+            pdf.setFont(undefined, 'bold');
+            pdf.setTextColor(...overallColor);
+            pdf.text(`Overall CAF Compliance Score: ${bp.overallPercentage}%`, margin + 5, yPos);
+            yPos += 7;
+            
+            pdf.setFontSize(10);
+            pdf.setFont(undefined, 'normal');
+            pdf.setTextColor(0, 0, 0);
+            pdf.text(`${bp.overallScore} points out of ${bp.maxScore} maximum`, margin + 5, yPos);
+            yPos += 7;
+            
+            pdf.setFont(undefined, 'italic');
+            pdf.text(`Status: ${getStatusEmoji(bp.overallStatus)} ${bp.overallMessage}`, margin + 5, yPos);
+            yPos += 10;
+            
+            pdf.setFont(undefined, 'normal');
+            addText('This assessment evaluates your Azure Landing Zone against Microsoft Cloud Adoption Framework design principles covering management hierarchy, policy governance, identity management, network topology, security, cost management, and resource organization.', 9, false);
+            yPos += 5;
+            
+            // === DETAILED CATEGORY ASSESSMENTS ===
+            const categories = {
+                'managementGroupHierarchy': 'Management Group Hierarchy',
+                'policyDrivenGovernance': 'Policy-Driven Governance',
+                'identityAndAccess': 'Identity and Access Management',
+                'networkTopology': 'Network Topology and Connectivity',
+                'securityGovernance': 'Security and Governance',
+                'costManagement': 'Cost Management',
+                'resourceOrganization': 'Resource Organization'
+            };
+            
+            for (const [key, title] of Object.entries(categories)) {
+                const cat = bp.categories[key];
+                if (!cat) continue;
                 
-                pdf.setFontSize(16);
-                pdf.setFont(undefined, 'bold');
-                pdf.text('Cloud Adoption Framework Compliance Assessment', margin, yPos);
-                yPos += 10;
+                const catPercentage = Math.round((cat.score / cat.maxScore) * 100);
+                const catColor = getScoreColor(catPercentage);
                 
-                const bp = inventoryData.bestPractices;
+                // Start new page if needed
+                if (yPos > pageHeight - 50) {
+                    pdf.addPage();
+                    yPos = 20;
+                }
                 
-                // Overall Score
+                // Category Header
                 pdf.setFontSize(12);
                 pdf.setFont(undefined, 'bold');
-                pdf.text(`Overall Compliance Score: ${bp.overallPercentage}% (${bp.overallScore}/${bp.maxScore} points)`, margin, yPos);
-                yPos += 7;
+                pdf.setTextColor(...catColor);
+                pdf.text(`${getStatusEmoji(cat.status)} ${title}`, margin, yPos);
+                yPos += 6;
                 
                 pdf.setFontSize(10);
-                pdf.setFont(undefined, 'normal');
-                addText(bp.overallMessage);
-                yPos += 5;
-                
-                addText('This assessment evaluates your Azure Landing Zone against Microsoft Cloud Adoption Framework design principles, including management group hierarchy, policy-driven governance, identity and access management, network topology, security, cost management, and resource organization.');
-                yPos += 10;
-                
-                // Category Assessments
-                pdf.setFontSize(12);
-                pdf.setFont(undefined, 'bold');
-                pdf.text('Assessment Categories', margin, yPos);
+                pdf.setTextColor(0, 0, 0);
+                pdf.text(`Score: ${cat.score}/${cat.maxScore} (${catPercentage}%)`, margin, yPos);
                 yPos += 7;
                 
-                const categories = {
-                    'managementGroupHierarchy': 'Management Group Hierarchy',
-                    'policyDrivenGovernance': 'Policy-Driven Governance',
-                    'identityAndAccess': 'Identity and Access Management',
-                    'networkTopology': 'Network Topology and Connectivity',
-                    'securityGovernance': 'Security and Governance',
-                    'costManagement': 'Cost Management',
-                    'resourceOrganization': 'Resource Organization'
-                };
-                
-                for (const [key, title] of Object.entries(categories)) {
-                    const cat = bp.categories[key];
-                    if (!cat) continue;
-                    
-                    const catPercentage = Math.round((cat.score / cat.maxScore) * 100);
-                    
-                    // Category header
-                    pdf.setFontSize(11);
-                    pdf.setFont(undefined, 'bold');
-                    const statusIcon = cat.status === 'excellent' ? '🟢' : 
-                                      cat.status === 'good' ? '🟡' : 
-                                      cat.status === 'fair' ? '🟠' : '🔴';
-                    
-                    if (yPos > pageHeight - 30) {
-                        pdf.addPage();
-                        yPos = 20;
-                    }
-                    
-                    pdf.text(`${title}: ${catPercentage}% (${cat.score}/${cat.maxScore})`, margin, yPos);
-                    yPos += 6;
-                    
-                    // Findings
-                    pdf.setFontSize(9);
-                    pdf.setFont(undefined, 'normal');
-                    cat.findings.forEach(finding => {
-                        if (yPos > pageHeight - 10) {
-                            pdf.addPage();
-                            yPos = 20;
-                        }
-                        const lines = pdf.splitTextToSize(finding, maxWidth - 5);
-                        lines.forEach(line => {
-                            pdf.text(`  ${line}`, margin, yPos);
-                            yPos += 5;
-                        });
-                    });
-                    
-                    yPos += 3;
-                }
-                
-                // Recommendations
-                if (bp.recommendations && bp.recommendations.length > 0) {
-                    if (yPos > pageHeight - 40) {
-                        pdf.addPage();
-                        yPos = 20;
-                    }
-                    
-                    yPos += 5;
-                    pdf.setFontSize(12);
-                    pdf.setFont(undefined, 'bold');
-                    pdf.text('Recommended Actions', margin, yPos);
-                    yPos += 7;
-                    
-                    pdf.setFontSize(10);
-                    pdf.setFont(undefined, 'normal');
-                    addText('Based on the assessment, consider implementing the following improvements:');
-                    yPos += 2;
-                    
-                    bp.recommendations.forEach((rec, idx) => {
-                        if (yPos > pageHeight - 10) {
-                            pdf.addPage();
-                            yPos = 20;
-                        }
-                        const lines = pdf.splitTextToSize(`${idx + 1}. ${rec}`, maxWidth - 5);
-                        lines.forEach(line => {
-                            pdf.text(line, margin, yPos);
-                            yPos += 6;
-                        });
-                    });
-                    
-                    yPos += 10;
-                }
-                
-                // Reference
-                yPos += 5;
+                // Findings
+                pdf.setFont(undefined, 'normal');
                 pdf.setFontSize(9);
-                pdf.setFont(undefined, 'italic');
-                addText('Reference: Microsoft Cloud Adoption Framework for Azure - Azure Landing Zone Design Principles');
-                addText('https://learn.microsoft.com/azure/cloud-adoption-framework/ready/landing-zone/');
+                cat.findings.forEach(finding => {
+                    if (yPos > pageHeight - 10) {
+                        pdf.addPage();
+                        yPos = 20;
+                    }
+                    
+                    const icon = finding.startsWith('✓') ? '✓' : finding.startsWith('⚠') ? '⚠' : finding.startsWith('✗') ? '✗' : '•';
+                    const color = icon === '✓' ? [16, 185, 129] : icon === '⚠' ? [245, 158, 11] : icon === '✗' ? [239, 68, 68] : [0, 0, 0];
+                    
+                    pdf.setTextColor(...color);
+                    pdf.text(icon, margin + 2, yPos);
+                    pdf.setTextColor(0, 0, 0);
+                    
+                    const cleanFinding = finding.replace(/^[✓⚠✗]\s*/, '');
+                    const lines = pdf.splitTextToSize(cleanFinding, maxWidth - 8);
+                    lines.forEach(line => {
+                        if (yPos > pageHeight - 5) {
+                            pdf.addPage();
+                            yPos = 20;
+                        }
+                        pdf.text(line, margin + 7, yPos);
+                        yPos += 5;
+                    });
+                    yPos += 1;
+                });
+                
                 yPos += 5;
             }
             
-            // Management Groups
-            pdf.addPage();
-            yPos = 20;
-            addSection('Management Groups', inventoryData.explanations.managementGroups);
+            // === RECOMMENDATIONS ===
+            if (bp.recommendations && bp.recommendations.length > 0) {
+                pdf.addPage();
+                yPos = 20;
+                
+                addText('RECOMMENDED ACTIONS', 14, true, [0, 120, 212]);
+                yPos += 5;
+                
+                addText('Based on the CAF assessment, the following actions are recommended to improve your Azure Landing Zone implementation:', 10, false);
+                yPos += 5;
+                
+                bp.recommendations.forEach((rec, idx) => {
+                    if (yPos > pageHeight - 15) {
+                        pdf.addPage();
+                        yPos = 20;
+                    }
+                    
+                    pdf.setFontSize(9);
+                    pdf.setFont(undefined, 'bold');
+                    pdf.text(`${idx + 1}.`, margin, yPos);
+                    pdf.setFont(undefined, 'normal');
+                    
+                    const lines = pdf.splitTextToSize(rec, maxWidth - 8);
+                    lines.forEach(line => {
+                        if (yPos > pageHeight - 5) {
+                            pdf.addPage();
+                            yPos = 20;
+                        }
+                        pdf.text(line, margin + 7, yPos);
+                        yPos += 5;
+                    });
+                    yPos += 3;
+                });
+                
+                yPos += 10;
+            }
             
-            // Policies
+            // === WAF ALIGNMENT ===
             pdf.addPage();
             yPos = 20;
-            addSection('Azure Policy', inventoryData.explanations.policies);
             
-            // Role Assignments
-            pdf.addPage();
-            yPos = 20;
-            addSection('Role-Based Access Control (RBAC)', inventoryData.explanations.roleAssignments);
+            addText('WELL-ARCHITECTED FRAMEWORK ALIGNMENT', 14, true, [0, 120, 212]);
+            yPos += 5;
             
-            // Networking
-            pdf.addPage();
-            yPos = 20;
-            addSection('Networking Architecture', inventoryData.explanations.networking);
+            addText('This section maps your Azure Landing Zone implementation to the five pillars of the Microsoft Azure Well-Architected Framework (WAF).', 10, false);
+            yPos += 8;
             
-            // Governance
-            pdf.addPage();
-            yPos = 20;
-            addSection('Governance and Compliance', inventoryData.explanations.governance);
+            // WAF Pillar 1: Reliability
+            addSubSection('Pillar 1: Reliability');
+            addText('Assessment: How well your Landing Zone supports workload availability and resilience', 9, true);
+            yPos += 2;
             
-            // Subscriptions
-            pdf.addPage();
-            yPos = 20;
-            addSection('Subscription Strategy', inventoryData.explanations.subscriptions);
+            const hasVNetPeering = summary.totalPeerings > 0;
+            const hasMultipleVNets = summary.totalVNets >= 2;
+            const hasLocks = summary.totalLocks > 0;
+            
+            if (hasMultipleVNets && hasVNetPeering) {
+                addBullet('✓ Network redundancy through multiple VNets with peering supports workload resilience');
+            } else {
+                addBullet('✗ Limited network architecture - consider implementing hub-spoke for better availability');
+            }
+            
+            if (hasLocks) {
+                addBullet('✓ Resource locks protect critical infrastructure from accidental deletion');
+            } else {
+                addBullet('✗ No resource locks - critical resources are at risk of accidental deletion');
+            }
+            
+            if (inventoryData.networking?.vpnGateways?.length > 0 || inventoryData.networking?.expressRoutes?.length > 0) {
+                addBullet('✓ Hybrid connectivity (VPN/ExpressRoute) provides redundant access paths');
+            } else {
+                addBullet('⚠ No hybrid connectivity detected - may impact disaster recovery capabilities');
+            }
+            
+            const reliabilityScore = ((hasMultipleVNets ? 1 : 0) + (hasVNetPeering ? 1 : 0) + (hasLocks ? 1 : 0)) / 3 * 100;
+            pdf.setTextColor(...getScoreColor(reliabilityScore));
+            addText(`Reliability Score: ${Math.round(reliabilityScore)}%`, 10, true);
+            pdf.setTextColor(0, 0, 0);
+            yPos += 5;
+            
+            // WAF Pillar 2: Security
+            addSubSection('Pillar 2: Security');
+            addText('Assessment: Protection against security threats and data breaches', 9, true);
+            yPos += 2;
+            
+            const hasPolicyAssignments = summary.totalPolicyAssignments >= 5;
+            const hasRBAC = summary.totalRoleAssignments >= 10;
+            const hasNSGs = (inventoryData.networking?.networkSecurityGroups?.length || 0) > 0;
+            const hasFirewall = (inventoryData.networking?.firewalls?.length || 0) > 0;
+            
+            if (hasPolicyAssignments) {
+                addBullet(`✓ Strong policy enforcement with ${summary.totalPolicyAssignments} policy assignments`);
+            } else {
+                addBullet('✗ Weak policy governance - implement Azure Policy for security compliance');
+            }
+            
+            if (hasRBAC) {
+                addBullet(`✓ Comprehensive RBAC with ${summary.totalRoleAssignments} role assignments`);
+            } else {
+                addBullet('✗ Limited access control - expand RBAC implementation');
+            }
+            
+            if (hasNSGs) {
+                addBullet(`✓ Network segmentation with ${inventoryData.networking.networkSecurityGroups.length} NSGs`);
+            } else {
+                addBullet('✗ No NSGs detected - implement network-level security');
+            }
+            
+            if (hasFirewall) {
+                addBullet('✓ Azure Firewall deployed for centralized security filtering');
+            } else {
+                addBullet('⚠ No Azure Firewall - consider deploying for egress traffic control');
+            }
+            
+            const securityScore = ((hasPolicyAssignments ? 1 : 0) + (hasRBAC ? 1 : 0) + (hasNSGs ? 1 : 0) + (hasFirewall ? 1 : 0)) / 4 * 100;
+            pdf.setTextColor(...getScoreColor(securityScore));
+            addText(`Security Score: ${Math.round(securityScore)}%`, 10, true);
+            pdf.setTextColor(0, 0, 0);
+            yPos += 5;
+            
+            // WAF Pillar 3: Cost Optimization
+            addSubSection('Pillar 3: Cost Optimization');
+            addText('Assessment: Managing costs while maximizing cloud value', 9, true);
+            yPos += 2;
+            
+            const hasBudgets = summary.totalBudgets >= 3;
+            const hasTags = (inventoryData.governance?.tags && Object.keys(inventoryData.governance.tags).length >= 5);
+            
+            if (hasBudgets) {
+                addBullet(`✓ Cost management with ${summary.totalBudgets} budgets configured`);
+            } else {
+                addBullet('✗ Insufficient cost controls - implement budgets for all subscriptions');
+            }
+            
+            if (hasTags) {
+                addBullet('✓ Resource tagging enables cost tracking and chargeback');
+            } else {
+                addBullet('✗ Limited tagging - implement mandatory tags for cost allocation');
+            }
+            
+            if (summary.totalPolicyAssignments > 0) {
+                addBullet('✓ Policies can prevent deployment of expensive resource SKUs');
+            } else {
+                addBullet('⚠ No policy enforcement - consider policies for SKU restrictions');
+            }
+            
+            const costScore = ((hasBudgets ? 1 : 0) + (hasTags ? 1 : 0) + (summary.totalPolicyAssignments > 0 ? 1 : 0)) / 3 * 100;
+            pdf.setTextColor(...getScoreColor(costScore));
+            addText(`Cost Optimization Score: ${Math.round(costScore)}%`, 10, true);
+            pdf.setTextColor(0, 0, 0);
+            yPos += 5;
+            
+            // WAF Pillar 4: Operational Excellence
+            addSubSection('Pillar 4: Operational Excellence');
+            addText('Assessment: Operations processes that keep systems running in production', 9, true);
+            yPos += 2;
+            
+            const hasMgHierarchy = summary.totalManagementGroups >= 3;
+            const hasMultiSub = summary.totalSubscriptions >= 3;
+            
+            if (hasMgHierarchy) {
+                addBullet(`✓ Management group hierarchy (${summary.totalManagementGroups} groups) enables organized governance`);
+            } else {
+                addBullet('✗ Flat structure - implement management group hierarchy');
+            }
+            
+            if (hasMultiSub) {
+                addBullet('✓ Multiple subscriptions support workload isolation and scale');
+            } else {
+                addBullet('⚠ Limited subscription strategy - consider subscription democratization');
+            }
+            
+            if (inventoryData.governance?.diagnosticSettings?.length > 0) {
+                addBullet('✓ Diagnostic settings enable monitoring and logging');
+            } else {
+                addBullet('⚠ Limited observability - implement diagnostic settings');
+            }
+            
+            const opsScore = ((hasMgHierarchy ? 1 : 0) + (hasMultiSub ? 1 : 0) + ((inventoryData.governance?.diagnosticSettings?.length || 0) > 0 ? 1 : 0)) / 3 * 100;
+            pdf.setTextColor(...getScoreColor(opsScore));
+            addText(`Operational Excellence Score: ${Math.round(opsScore)}%`, 10, true);
+            pdf.setTextColor(0, 0, 0);
+            yPos += 5;
+            
+            // WAF Pillar 5: Performance Efficiency
+            addSubSection('Pillar 5: Performance Efficiency');
+            addText('Assessment: Ability to scale resources to meet demand efficiently', 9, true);
+            yPos += 2;
+            
+            if (hasVNetPeering && hasMultipleVNets) {
+                addBullet('✓ Hub-spoke network topology enables efficient connectivity at scale');
+            } else {
+                addBullet('✗ Network architecture may not scale efficiently');
+            }
+            
+            if (inventoryData.networking?.expressRoutes?.length > 0) {
+                addBullet('✓ ExpressRoute provides high-performance hybrid connectivity');
+            } else {
+                addBullet('⚠ No ExpressRoute - VPN may limit bandwidth for workloads');
+            }
+            
+            if (summary.totalPolicyAssignments > 0) {
+                addBullet('✓ Policy automation reduces deployment overhead');
+            } else {
+                addBullet('⚠ Manual governance may slow deployment velocity');
+            }
+            
+            const perfScore = ((hasVNetPeering ? 1 : 0) + ((inventoryData.networking?.expressRoutes?.length || 0) > 0 ? 1 : 0) + (summary.totalPolicyAssignments > 0 ? 1 : 0)) / 3 * 100;
+            pdf.setTextColor(...getScoreColor(perfScore));
+            addText(`Performance Efficiency Score: ${Math.round(perfScore)}%`, 10, true);
+            pdf.setTextColor(0, 0, 0);
+            yPos += 10;
+            
+            // Overall WAF Score
+            const overallWAFScore = (reliabilityScore + securityScore + costScore + opsScore + perfScore) / 5;
+            pdf.setDrawColor(180, 180, 180);
+            pdf.setFillColor(245, 248, 250);
+            pdf.rect(margin, yPos, maxWidth, 15, 'FD');
+            yPos += 5;
+            
+            pdf.setFontSize(12);
+            pdf.setFont(undefined, 'bold');
+            pdf.setTextColor(...getScoreColor(overallWAFScore));
+            pdf.text(`Overall WAF Alignment Score: ${Math.round(overallWAFScore)}%`, margin + 5, yPos);
+            yPos += 6;
+            
+            pdf.setFontSize(9);
+            pdf.setFont(undefined, 'italic');
+            pdf.setTextColor(0, 0, 0);
+            pdf.text('Reference: Microsoft Azure Well-Architected Framework', margin + 5, yPos);
+            yPos += 10;
         }
         
-        // Save PDF
-        pdf.save(`Azure-Landing-Zone-Inventory-${new Date().toISOString().split('T')[0]}.pdf`);
+        // === DETAILED COMPONENT SECTIONS ===
+        
+        // Management Groups Details
+        if (inventoryData.managementGroups && inventoryData.managementGroups.length > 0) {
+            pdf.addPage();
+            yPos = 20;
+            
+            addText('MANAGEMENT GROUP HIERARCHY', 14, true, [0, 120, 212]);
+            yPos += 5;
+            
+            if (inventoryData.explanations?.managementGroups) {
+                addText(inventoryData.explanations.managementGroups, 9, false);
+                yPos += 5;
+            }
+            
+            addSubSection(`Detected Management Groups (${inventoryData.managementGroups.length})`);
+            
+            inventoryData.managementGroups.forEach(mg => {
+                if (yPos > pageHeight - 20) {
+                    pdf.addPage();
+                    yPos = 20;
+                }
+                
+                addBullet(`${mg.displayName} (${mg.name})`, 0);
+                if (mg.parentId) {
+                    addBullet(`Parent: ${mg.parentId.split('/').pop()}`, 5);
+                }
+                if (mg.children && mg.children.length > 0) {
+                    addBullet(`Children: ${mg.children.length} (${mg.children.map(c => c.displayName || c.name).join(', ')})`, 5);
+                }
+                yPos += 2;
+            });
+            yPos += 5;
+        }
+        
+        // Subscriptions Details
+        if (inventoryData.subscriptions && inventoryData.subscriptions.length > 0) {
+            pdf.addPage();
+            yPos = 20;
+            
+            addText('SUBSCRIPTION INVENTORY', 14, true, [0, 120, 212]);
+            yPos += 5;
+            
+            if (inventoryData.explanations?.subscriptions) {
+                addText(inventoryData.explanations.subscriptions, 9, false);
+                yPos += 5;
+            }
+            
+            addSubSection(`Active Subscriptions (${inventoryData.subscriptions.length})`);
+            
+            inventoryData.subscriptions.forEach(sub => {
+                if (yPos > pageHeight - 25) {
+                    pdf.addPage();
+                    yPos = 20;
+                }
+                
+                pdf.setFont(undefined, 'bold');
+                addBullet(`${sub.name}`, 0);
+                pdf.setFont(undefined, 'normal');
+                addBullet(`ID: ${sub.id}`, 5);
+                addBullet(`State: ${sub.state}`, 5);
+                if (sub.managementGroupId) {
+                    addBullet(`Management Group: ${sub.managementGroupId.split('/').pop()}`, 5);
+                }
+                if (sub.tags && Object.keys(sub.tags).length > 0) {
+                    const tagStr = Object.entries(sub.tags).map(([k, v]) => `${k}=${v}`).slice(0, 3).join(', ');
+                    addBullet(`Tags: ${tagStr}${Object.keys(sub.tags).length > 3 ? '...' : ''}`, 5);
+                }
+                yPos += 2;
+            });
+            yPos += 5;
+        }
+        
+        // Policy Details
+        if (summary.totalPolicyAssignments > 0 || summary.totalPolicyDefinitions > 0) {
+            pdf.addPage();
+            yPos = 20;
+            
+            addText('AZURE POLICY CONFIGURATION', 14, true, [0, 120, 212]);
+            yPos += 5;
+            
+            if (inventoryData.explanations?.policies) {
+                addText(inventoryData.explanations.policies, 9, false);
+                yPos += 5;
+            }
+            
+            // Policy Summary
+            addSubSection('Policy Summary');
+            addBullet(`Custom Policy Definitions: ${summary.totalPolicyDefinitions || 0}`);
+            addBullet(`Policy Initiatives (Sets): ${summary.totalPolicyInitiatives || 0}`);
+            addBullet(`Active Assignments: ${summary.totalPolicyAssignments || 0}`);
+            yPos += 5;
+            
+            // Sample Policy Assignments
+            if (inventoryData.policies?.assignments && inventoryData.policies.assignments.length > 0) {
+                addSubSection(`Policy Assignments (showing first 10)`);
+                
+                const assignments = inventoryData.policies.assignments.slice(0, 10);
+                assignments.forEach(pa => {
+                    if (yPos > pageHeight - 20) {
+                        pdf.addPage();
+                        yPos = 20;
+                    }
+                    
+                    pdf.setFont(undefined, 'bold');
+                    addBullet(`${pa.displayName || pa.name}`, 0);
+                    pdf.setFont(undefined, 'normal');
+                    addBullet(`Scope: ${pa.scope?.split('/').slice(-2).join('/')}`, 5);
+                    if (pa.policyDefinitionName) {
+                        addBullet(`Policy: ${pa.policyDefinitionName}`, 5);
+                    }
+                    yPos += 2;
+                });
+            }
+            yPos += 5;
+        }
+        
+        // RBAC Details
+        if (summary.totalRoleAssignments > 0) {
+            pdf.addPage();
+            yPos = 20;
+            
+            addText('ROLE-BASED ACCESS CONTROL (RBAC)', 14, true, [0, 120, 212]);
+            yPos += 5;
+            
+            if (inventoryData.explanations?.roleAssignments) {
+                addText(inventoryData.explanations.roleAssignments, 9, false);
+                yPos += 5;
+            }
+            
+            addSubSection(`Total Role Assignments: ${summary.totalRoleAssignments}`);
+            
+            // Role distribution
+            if (inventoryData.roleAssignments && inventoryData.roleAssignments.length > 0) {
+                const roleCounts = {};
+                inventoryData.roleAssignments.forEach(ra => {
+                    const role = ra.roleDefinitionName || 'Unknown';
+                    roleCounts[role] = (roleCounts[role] || 0) + 1;
+                });
+                
+                addSubSection('Role Distribution');
+                Object.entries(roleCounts).slice(0, 15).forEach(([role, count]) => {
+                    addBullet(`${role}: ${count} assignment${count > 1 ? 's' : ''}`);
+                });
+            }
+            yPos += 5;
+        }
+        
+        // Networking Details
+        if (summary.totalVNets > 0) {
+            pdf.addPage();
+            yPos = 20;
+            
+            addText('NETWORK ARCHITECTURE', 14, true, [0, 120, 212]);
+            yPos += 5;
+            
+            if (inventoryData.explanations?.networking) {
+                addText(inventoryData.explanations.networking, 9, false);
+                yPos += 5;
+            }
+            
+            // VNet Summary
+            addSubSection(`Virtual Networks (${summary.totalVNets})`);
+            
+            if (inventoryData.networking?.vnets) {
+                inventoryData.networking.vnets.forEach(vnet => {
+                    if (yPos > pageHeight - 25) {
+                        pdf.addPage();
+                        yPos = 20;
+                    }
+                    
+                    pdf.setFont(undefined, 'bold');
+                    addBullet(`${vnet.name}`, 0);
+                    pdf.setFont(undefined, 'normal');
+                    addBullet(`Location: ${vnet.location}`, 5);
+                    addBullet(`Address Space: ${vnet.addressSpace?.join(', ') || 'N/A'}`, 5);
+                    if (vnet.subnets && vnet.subnets.length > 0) {
+                        addBullet(`Subnets: ${vnet.subnets.length} (${vnet.subnets.map(s => s.name).slice(0, 3).join(', ')})`, 5);
+                    }
+                    if (vnet.peerings && vnet.peerings.length > 0) {
+                        addBullet(`Peerings: ${vnet.peerings.length}`, 5);
+                    }
+                    yPos += 2;
+                });
+            }
+            yPos += 5;
+            
+            // Network Security
+            if (inventoryData.networking?.firewalls?.length > 0 || inventoryData.networking?.networkSecurityGroups?.length > 0) {
+                addSubSection('Network Security Components');
+                if (inventoryData.networking.firewalls.length > 0) {
+                    addBullet(`Azure Firewalls: ${inventoryData.networking.firewalls.length}`);
+                }
+                if (inventoryData.networking.networkSecurityGroups.length > 0) {
+                    addBullet(`Network Security Groups: ${inventoryData.networking.networkSecurityGroups.length}`);
+                }
+                if (inventoryData.networking.vpnGateways?.length > 0) {
+                    addBullet(`VPN Gateways: ${inventoryData.networking.vpnGateways.length}`);
+                }
+                if (inventoryData.networking.expressRoutes?.length > 0) {
+                    addBullet(`ExpressRoute Circuits: ${inventoryData.networking.expressRoutes.length}`);
+                }
+                yPos += 5;
+            }
+        }
+        
+        // Governance Details
+        if (summary.totalBudgets > 0 || summary.totalLocks > 0) {
+            pdf.addPage();
+            yPos = 20;
+            
+            addText('GOVERNANCE AND COMPLIANCE', 14, true, [0, 120, 212]);
+            yPos += 5;
+            
+            if (inventoryData.explanations?.governance) {
+                addText(inventoryData.explanations.governance, 9, false);
+                yPos += 5;
+            }
+            
+            // Cost Management
+            if (summary.totalBudgets > 0) {
+                addSubSection(`Cost Management Budgets (${summary.totalBudgets})`);
+                
+                if (inventoryData.governance?.budgets) {
+                    inventoryData.governance.budgets.slice(0, 10).forEach(budget => {
+                        if (yPos > pageHeight - 20) {
+                            pdf.addPage();
+                            yPos = 20;
+                        }
+                        
+                        pdf.setFont(undefined, 'bold');
+                        addBullet(`${budget.name}`, 0);
+                        pdf.setFont(undefined, 'normal');
+                        if (budget.amount) {
+                            addBullet(`Amount: $${budget.amount} ${budget.timeGrain || ''}`, 5);
+                        }
+                        if (budget.scope) {
+                            addBullet(`Scope: ${budget.scope.split('/').slice(-2).join('/')}`, 5);
+                        }
+                        yPos += 2;
+                    });
+                }
+                yPos += 5;
+            }
+            
+            // Resource Locks
+            if (summary.totalLocks > 0) {
+                addSubSection(`Resource Locks (${summary.totalLocks})`);
+                addText('Resource locks protect critical resources from accidental deletion or modification.', 9, false);
+                yPos += 3;
+                
+                if (inventoryData.governance?.locks) {
+                    const locksByType = {};
+                    inventoryData.governance.locks.forEach(lock => {
+                        const type = lock.level || 'Unknown';
+                        locksByType[type] = (locksByType[type] || 0) + 1;
+                    });
+                    
+                    Object.entries(locksByType).forEach(([type, count]) => {
+                        addBullet(`${type}: ${count} lock${count > 1 ? 's' : ''}`);
+                    });
+                }
+                yPos += 5;
+            }
+            
+            // Tagging Strategy
+            if (inventoryData.governance?.tags && Object.keys(inventoryData.governance.tags).length > 0) {
+                addSubSection('Resource Tagging Strategy');
+                const tags = Object.keys(inventoryData.governance.tags);
+                addBullet(`Unique tag keys in use: ${tags.length}`);
+                addBullet(`Common tags: ${tags.slice(0, 10).join(', ')}${tags.length > 10 ? '...' : ''}`);
+                yPos += 5;
+            }
+        }
+        
+        // === REFERENCES AND RESOURCES ===
+        pdf.addPage();
+        yPos = 20;
+        
+        addText('REFERENCES AND RESOURCES', 14, true, [0, 120, 212]);
+        yPos += 10;
+        
+        pdf.setFontSize(10);
+        pdf.setFont(undefined, 'bold');
+        pdf.text('Microsoft Cloud Adoption Framework', margin, yPos);
+        yPos += 5;
+        pdf.setFont(undefined, 'normal');
+        pdf.setFontSize(9);
+        addText('The Cloud Adoption Framework provides proven guidance for your cloud adoption journey. This Landing Zone assessment is based on CAF design principles for enterprise-scale architecture.');
+        yPos += 3;
+        addText('https://learn.microsoft.com/azure/cloud-adoption-framework/');
+        yPos += 8;
+        
+        pdf.setFontSize(10);
+        pdf.setFont(undefined, 'bold');
+        pdf.text('Microsoft Azure Well-Architected Framework', margin, yPos);
+        yPos += 5;
+        pdf.setFont(undefined, 'normal');
+        pdf.setFontSize(9);
+        addText('The Well-Architected Framework helps you build and operate reliable, secure, efficient, and cost-effective systems in the cloud. This report assesses your Landing Zone against WAF\'s five pillars.');
+        yPos += 3;
+        addText('https://learn.microsoft.com/azure/well-architected/');
+        yPos += 8;
+        
+        pdf.setFontSize(10);
+        pdf.setFont(undefined, 'bold');
+        pdf.text('Azure Landing Zone Design Areas', margin, yPos);
+        yPos += 5;
+        pdf.setFont(undefined, 'normal');
+        pdf.setFontSize(9);
+        addText('Learn about the eight design areas that define an Azure Landing Zone: identity, management groups, subscriptions, network topology, security, management, governance, and platform automation.');
+        yPos += 3;
+        addText('https://learn.microsoft.com/azure/cloud-adoption-framework/ready/landing-zone/design-areas');
+        yPos += 8;
+        
+        pdf.setFontSize(10);
+        pdf.setFont(undefined, 'bold');
+        pdf.text('Azure Architecture Center', margin, yPos);
+        yPos += 5;
+        pdf.setFont(undefined, 'normal');
+        pdf.setFontSize(9);
+        addText('Browse reference architectures, best practices, and design patterns for building solutions on Azure.');
+        yPos += 3;
+        addText('https://learn.microsoft.com/azure/architecture/');
+        yPos += 15;
+        
+        // Report Footer
+        pdf.setDrawColor(180, 180, 180);
+        pdf.line(margin, yPos, margin + maxWidth, yPos);
+        yPos += 7;
+        
+        pdf.setFontSize(8);
+        pdf.setFont(undefined, 'italic');
+        pdf.setTextColor(100, 100, 100);
+        pdf.text('Azure Landing Zone Assessment Report', margin, yPos);
+        pdf.text(`Generated: ${new Date().toLocaleString()}`, margin + maxWidth - 45, yPos);
+        
+        // Add page numbers to all pages
+        const pageCount = pdf.internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+            pdf.setPage(i);
+            pdf.setFontSize(8);
+            pdf.setTextColor(150, 150, 150);
+            pdf.text(`Page ${i} of ${pageCount}`, margin + maxWidth - 20, 290);
+        }
+        
+        // Save with timestamp
+        const timestamp = new Date().toISOString().split('T')[0];
+        pdf.save(`Azure-Landing-Zone-Assessment-${timestamp}.pdf`);
         
         btn.innerHTML = '<span class="icon">✓</span> PDF Downloaded!';
         setTimeout(() => {
