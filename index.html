@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Primary Meta Tags -->
+    <title>Azure Documenter - Automated Azure Environment Inventory & Documentation Tool</title>
+    <meta name="title" content="Azure Documenter - Automated Azure Environment Inventory & Documentation Tool">
+    <meta name="description" content="Powerful local web server that automates Azure infrastructure documentation. Generate comprehensive reports for Azure Landing Zones, Virtual Desktop (AVD), and cloud environments in minutes. Free, secure, and extensible.">
+    <meta name="keywords" content="Azure Documenter, Azure documentation, Azure inventory tool, Azure Landing Zone documentation, Azure Virtual Desktop documentation, AVD inventory, Azure infrastructure audit, cloud documentation, Azure reporting tool, Azure environment scan, Azure compliance reporting, Azure PowerShell tools, infrastructure as code documentation">
+    <meta name="author" content="GetToThe.Cloud">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://www.azuredocumenter.com/">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://www.azuredocumenter.com/">
+    <meta property="og:title" content="Azure Documenter - Automated Azure Environment Inventory">
+    <meta property="og:description" content="Generate comprehensive Azure infrastructure documentation in minutes. Free tool for documenting Landing Zones, AVD, and cloud environments with interactive reports.">
+    <meta property="og:image" content="https://www.azuredocumenter.com/images/og-image.png">
+    <meta property="og:site_name" content="Azure Documenter">
+    <meta property="og:locale" content="en_US">
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://www.azuredocumenter.com/">
+    <meta name="twitter:title" content="Azure Documenter - Automated Azure Environment Inventory">
+    <meta name="twitter:description" content="Generate comprehensive Azure infrastructure documentation in minutes. Free tool for documenting Landing Zones, AVD, and cloud environments.">
+    <meta name="twitter:image" content="https://www.azuredocumenter.com/images/twitter-card.png">
+    <meta name="twitter:creator" content="@GetToTheCloud">
+    
+    <!-- Additional SEO Tags -->
+    <meta name="theme-color" content="#0078D4">
+    <meta name="msapplication-TileColor" content="#0078D4">
+    <meta name="application-name" content="Azure Documenter">
+    
+    <!-- Structured Data (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Azure Documenter",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Windows, macOS, Linux",
+      "description": "Automated Azure environment documentation tool that generates comprehensive reports for Azure Landing Zones and Virtual Desktop deployments",
+      "url": "https://www.azuredocumenter.com",
+      "author": {"@type": "Organization", "name": "GetToThe.Cloud", "url": "https://www.gettothe.cloud"},
+      "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"},
+      "aggregateRating": {"@type": "AggregateRating", "ratingValue": "5", "ratingCount": "1"},
+      "featureList": ["Azure Landing Zone documentation", "Azure Virtual Desktop inventory", "Interactive HTML reports", "Multi-subscription support", "Network topology visualization", "Compliance audit reports", "Local secure execution"]
+    }
+    </script>
+    
+    <!-- Embedded Stylesheet for Offline Compatibility -->
+    <style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --azure-blue: #0078D4;
+    --azure-light: #50E6FF;
+    --azure-dark: #003168;
+    --success-green: #10B981;
+    --warning-orange: #F59E0B;
+    --gradient-primary: linear-gradient(135deg, #0078D4 0%, #50E6FF 100%);
+    --gradient-dark: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+    color: #fff;
+    line-height: 1.6;
+    overflow-x: hidden;
+}
+
+/* Animated Background */
+.bg-pattern {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.03;
+    background-image: 
+        repeating-linear-gradient(0deg, transparent, transparent 2px, #50E6FF 2px, #50E6FF 3px),
+        repeating-linear-gradient(90deg, transparent, transparent 2px, #50E6FF 2px, #50E6FF 3px);
+    background-size: 100px 100px;
+    animation: patternMove 30s linear infinite;
+    z-index: 0;
+    pointer-events: none;
+}
+
+@keyframes patternMove {
+    0% { transform: translate(0, 0); }
+    100% { transform: translate(100px, 100px); }
+}
+
+/* Floating gradient orbs */
+.gradient-orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(100px);
+    opacity: 0.3;
+    z-index: 0;
+    pointer-events: none;
+}
+
+.orb-1 {
+    width: 500px;
+    height: 500px;
+    background: var(--azure-blue);
+    top: -250px;
+    right: -250px;
+    animation: float 20s ease-in-out infinite;
+}
+
+.orb-2 {
+    width: 400px;
+    height: 400px;
+    background: var(--azure-light);
+    bottom: -200px;
+    left: -200px;
+    animation: float 25s ease-in-out infinite reverse;
+}
+
+@keyframes float {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(50px, -80px) scale(1.1); }
+    66% { transform: translate(-50px, 80px) scale(0.9); }
+}
+
+/* Container */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    position: relative;
+    z-index: 1;
+}
+
+/* Header/Hero Section */
+.hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 2rem 0;
+}
+
+.logo {
+    font-size: 3.5rem;
+    font-weight: 800;
+    margin-bottom: 1rem;
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -1px;
+}
+
+.tagline {
+    font-size: 1.5rem;
+    color: var(--azure-light);
+    margin-bottom: 1.5rem;
+    font-weight: 300;
+}
+
+.hero-description {
+    font-size: 1.2rem;
+    color: rgba(255,255,255,0.8);
+    max-width: 700px;
+    margin: 0 auto 3rem;
+    line-height: 1.8;
+}
+
+.cta-buttons {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 4rem;
+}
+
+.btn {
+    padding: 1rem 2.5rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    text-decoration: none;
+    border-radius: 50px;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.8rem;
+    cursor: pointer;
+    border: none;
+}
+
+.btn-primary {
+    background: var(--gradient-primary);
+    color: white;
+    box-shadow: 0 10px 30px rgba(0, 120, 212, 0.4);
+}
+
+.btn-primary:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 15px 40px rgba(0, 120, 212, 0.6);
+}
+
+.btn-secondary {
+    background: rgba(255,255,255,0.1);
+    color: white;
+    border: 2px solid rgba(255,255,255,0.3);
+    backdrop-filter: blur(10px);
+}
+
+.btn-secondary:hover {
+    background: rgba(255,255,255,0.15);
+    border-color: var(--azure-light);
+    transform: translateY(-3px);
+}
+
+/* How It Works Section */
+.how-it-works {
+    padding: 6rem 0;
+    background: rgba(0,0,0,0.2);
+    backdrop-filter: blur(10px);
+}
+
+.section-title {
+    font-size: 2.5rem;
+    text-align: center;
+    margin-bottom: 1rem;
+    font-weight: 700;
+}
+
+.section-subtitle {
+    text-align: center;
+    font-size: 1.2rem;
+    color: rgba(255,255,255,0.7);
+    margin-bottom: 4rem;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+    margin-bottom: 3rem;
+}
+
+.step {
+    text-align: center;
+    padding: 2rem;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.step:hover {
+    transform: translateY(-5px);
+    background: rgba(255,255,255,0.06);
+    border-color: var(--azure-light);
+}
+
+.step-number {
+    width: 60px;
+    height: 60px;
+    margin: 0 auto 1.5rem;
+    background: var(--gradient-primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    font-weight: 700;
+    box-shadow: 0 10px 30px rgba(0, 120, 212, 0.4);
+}
+
+.step-icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+}
+
+.step-title {
+    font-size: 1.3rem;
+    margin-bottom: 0.8rem;
+    color: var(--azure-light);
+}
+
+.step-description {
+    color: rgba(255,255,255,0.7);
+    line-height: 1.7;
+}
+
+/* Inventory Tools Section */
+.inventory-tools {
+    padding: 6rem 0;
+}
+
+.tools-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 2.5rem;
+    margin-bottom: 3rem;
+}
+
+.tool-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 24px;
+    padding: 2.5rem;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.tool-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--gradient-primary);
+    transform: scaleX(0);
+    transition: transform 0.4s ease;
+}
+
+.tool-card:hover {
+    transform: translateY(-10px);
+    background: rgba(255,255,255,0.08);
+    border-color: var(--azure-light);
+    box-shadow: 0 20px 60px rgba(0,120,212,0.3);
+}
+
+.tool-card:hover::before {
+    transform: scaleX(1);
+}
+
+.tool-icon {
+    width: 80px;
+    height: 80px;
+    background: var(--gradient-primary);
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 10px 30px rgba(0,120,212,0.4);
+}
+
+.tool-status {
+    display: inline-block;
+    padding: 0.3rem 1rem;
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--success-green);
+    border: 1px solid var(--success-green);
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.tool-status.coming-soon {
+    background: rgba(245, 158, 11, 0.2);
+    color: var(--warning-orange);
+    border-color: var(--warning-orange);
+}
+
+.tool-title {
+    font-size: 1.8rem;
+    margin-bottom: 1rem;
+    font-weight: 700;
+}
+
+.tool-description {
+    color: rgba(255,255,255,0.7);
+    line-height: 1.8;
+    margin-bottom: 1.5rem;
+}
+
+.tool-features {
+    list-style: none;
+    margin-bottom: 2rem;
+}
+
+.tool-features li {
+    padding: 0.5rem 0;
+    padding-left: 1.8rem;
+    position: relative;
+    color: rgba(255,255,255,0.8);
+}
+
+.tool-features li::before {
+    content: '✓';
+    position: absolute;
+    left: 0;
+    color: var(--success-green);
+    font-weight: bold;
+}
+
+.tool-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.8rem 1.8rem;
+    background: var(--gradient-primary);
+    color: white;
+    text-decoration: none;
+    border-radius: 50px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.tool-link:hover {
+    transform: scale(1.05);
+    box-shadow: 0 10px 30px rgba(0,120,212,0.5);
+}
+
+.tool-link::after {
+    content: '→';
+    transition: margin-left 0.3s ease;
+}
+
+.tool-link:hover::after {
+    margin-left: 0.5rem;
+}
+
+/* Modal/Popup Styles */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(10px);
+    z-index: 9998;
+    animation: fadeIn 0.3s ease;
+}
+
+.modal-overlay.active {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border: 2px solid rgba(80, 230, 255, 0.3);
+    border-radius: 24px;
+    max-width: 700px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.7);
+    animation: slideUp 0.4s ease;
+    z-index: 9999;
+}
+
+@keyframes slideUp {
+    from { 
+        opacity: 0;
+        transform: translateY(50px) scale(0.95);
+    }
+    to { 
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.modal-header {
+    padding: 2.5rem 2.5rem 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative;
+}
+
+.modal-close {
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 1.5rem;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.modal-close:hover {
+    background: rgba(255, 59, 48, 0.2);
+    border-color: rgba(255, 59, 48, 0.5);
+    color: #ff3b30;
+    transform: rotate(90deg);
+}
+
+.modal-icon {
+    width: 80px;
+    height: 80px;
+    background: var(--gradient-primary);
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 10px 30px rgba(0, 120, 212, 0.4);
+}
+
+.modal-title {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: #fff;
+}
+
+.modal-status {
+    display: inline-block;
+    padding: 0.4rem 1.2rem;
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--success-green);
+    border: 1px solid var(--success-green);
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.modal-body {
+    padding: 2rem 2.5rem;
+}
+
+.modal-description {
+    color: rgba(255, 255, 255, 0.85);
+    line-height: 1.8;
+    margin-bottom: 2rem;
+    font-size: 1.1rem;
+}
+
+.modal-section-title {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--azure-light);
+    margin-bottom: 1rem;
+    margin-top: 2rem;
+}
+
+.modal-section-title:first-child {
+    margin-top: 0;
+}
+
+.modal-features {
+    list-style: none;
+    margin-bottom: 2rem;
+}
+
+.modal-features li {
+    padding: 0.8rem 0;
+    padding-left: 2rem;
+    position: relative;
+    color: rgba(255, 255, 255, 0.8);
+    line-height: 1.6;
+}
+
+.modal-features li::before {
+    content: '✓';
+    position: absolute;
+    left: 0;
+    color: var(--success-green);
+    font-weight: bold;
+    font-size: 1.3rem;
+}
+
+.modal-tech-stack {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+    margin-bottom: 2rem;
+}
+
+.modal-tech-badge {
+    padding: 0.5rem 1.2rem;
+    background: rgba(0, 120, 212, 0.2);
+    border: 1px solid rgba(0, 120, 212, 0.5);
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--azure-light);
+}
+
+.modal-footer {
+    padding: 1.5rem 2.5rem 2.5rem;
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.modal-btn {
+    flex: 1;
+    min-width: 200px;
+    padding: 1rem 2rem;
+    font-size: 1.05rem;
+    font-weight: 600;
+    text-decoration: none;
+    border-radius: 50px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.8rem;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border: none;
+}
+
+.modal-btn-primary {
+    background: var(--gradient-primary);
+    color: white;
+    box-shadow: 0 10px 30px rgba(0, 120, 212, 0.4);
+}
+
+.modal-btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 15px 40px rgba(0, 120, 212, 0.6);
+}
+
+.modal-btn-secondary {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.modal-btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: var(--azure-light);
+    transform: translateY(-2px);
+}
+
+.modal-highlight {
+    background: rgba(80, 230, 255, 0.1);
+    border-left: 3px solid var(--azure-light);
+    padding: 1.2rem;
+    border-radius: 8px;
+    margin: 1.5rem 0;
+}
+
+.modal-highlight p {
+    color: rgba(255, 255, 255, 0.9);
+    line-height: 1.7;
+    margin: 0;
+}
+
+/* Add Tool Card - Different Style */
+.add-tool-card {
+    background: rgba(255,255,255,0.02);
+    border: 2px dashed rgba(255,255,255,0.3);
+    border-radius: 24px;
+    padding: 3rem 2.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    transition: all 0.3s ease;
+    min-height: 400px;
+}
+
+.add-tool-card:hover {
+    border-color: var(--azure-light);
+    background: rgba(255,255,255,0.04);
+}
+
+.add-icon {
+    font-size: 4rem;
+    color: var(--azure-light);
+    margin-bottom: 1.5rem;
+    opacity: 0.5;
+}
+
+.add-tool-title {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    color: rgba(255,255,255,0.9);
+}
+
+.add-tool-description {
+    color: rgba(255,255,255,0.6);
+    line-height: 1.6;
+}
+
+/* Features Section */
+.features {
+    padding: 6rem 0;
+    background: rgba(0,0,0,0.2);
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 2rem;
+}
+
+.feature-box {
+    padding: 2rem;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.feature-box:hover {
+    background: rgba(255,255,255,0.06);
+    transform: translateY(-5px);
+}
+
+.feature-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.feature-title {
+    font-size: 1.2rem;
+    margin-bottom: 0.8rem;
+    color: var(--azure-light);
+}
+
+.feature-text {
+    color: rgba(255,255,255,0.7);
+    line-height: 1.6;
+}
+
+/* Footer */
+.footer {
+    padding: 4rem 0 2rem;
+    text-align: center;
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.footer-logo {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.footer-links {
+    display: flex;
+    gap: 2rem;
+    justify-content: center;
+    margin: 2rem 0;
+    flex-wrap: wrap;
+}
+
+.footer-link {
+    color: rgba(255,255,255,0.7);
+    text-decoration: none;
+    transition: color 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.footer-link:hover {
+    color: var(--azure-light);
+}
+
+.footer-copyright {
+    color: rgba(255,255,255,0.5);
+    font-size: 0.9rem;
+    margin-top: 2rem;
+}
+
+/* Scroll Indicator */
+.scroll-indicator {
+    position: absolute;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+    0%, 20%, 50%, 80%, 100% { transform: translateX(-50%) translateY(0); }
+    40% { transform: translateX(-50%) translateY(-15px); }
+    60% { transform: translateX(-50%) translateY(-8px); }
+}
+
+.scroll-arrow {
+    width: 24px;
+    height: 24px;
+    border-right: 2px solid var(--azure-light);
+    border-bottom: 2px solid var(--azure-light);
+    transform: rotate(45deg);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .logo { font-size: 2.5rem; }
+    .tagline { font-size: 1.2rem; }
+    .hero-description { font-size: 1rem; }
+    .section-title { font-size: 2rem; }
+    .steps { grid-template-columns: 1fr; }
+    .tools-grid { grid-template-columns: 1fr; }
+    .features-grid { grid-template-columns: 1fr; }
+    .cta-buttons { flex-direction: column; }
+    .btn { width: 100%; justify-content: center; }
+}
+    </style>
+</head>
+<body>
+    <!-- Background Effects -->
+    <div class="bg-pattern"></div>
+    <div class="gradient-orb orb-1"></div>
+    <div class="gradient-orb orb-2"></div>
+
+    <!-- Hero Section -->
+    <section class="hero" itemscope itemtype="https://schema.org/WebApplication">
+        <div class="container">
+            <h1 class="logo" itemprop="name">🔍 Azure Documenter</h1>
+            <p class="tagline" itemprop="headline">Automated Azure Environment Inventory</p>
+            <p class="hero-description" itemprop="description">
+                A powerful local web server that authenticates to Azure, scans your infrastructure, 
+                and generates comprehensive documentation for your Landing Zones and Virtual Desktop environments. 
+                All from your browser.
+            </p>
+            <div class="cta-buttons">
+                <a href="#tools" class="btn btn-primary" aria-label="View available Azure inventory tools">
+                    <span>🚀</span> View Inventory Tools
+                </a>
+                <a href="https://github.com/GetToThe-Cloud/AzureDocumenter" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" aria-label="Get Azure Documenter on GitHub">
+                    <span>📦</span> Get on GitHub
+                </a>
+            </div>
+        </div>
+        <div class="scroll-indicator">
+            <div class="scroll-arrow"></div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section class="how-it-works" aria-labelledby="how-it-works-title">
+        <div class="container">
+            <h2 id="how-it-works-title" class="section-title">How It Works</h2>
+            <p class="section-subtitle">
+                Three simple steps to document your entire Azure infrastructure
+            </p>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-icon">🔐</div>
+                    <h3 class="step-title">Authenticate to Azure</h3>
+                    <p class="step-description">
+                        Login with your Azure credentials. The tool uses secure authentication 
+                        to access your subscriptions and resources.
+                    </p>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-icon">🌐</div>
+                    <h3 class="step-title">Start Local Server</h3>
+                    <p class="step-description">
+                        Run the PowerShell script to start a local web server on your machine. 
+                        Access it through your browser at localhost.
+                    </p>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-icon">📊</div>
+                    <h3 class="step-title">Generate Documentation</h3>
+                    <p class="step-description">
+                        Select your environment type, and watch as the tool scans and generates 
+                        a comprehensive, interactive documentation report.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Inventory Tools Section -->
+    <section class="inventory-tools" id="tools" aria-labelledby="tools-title">
+        <div class="container">
+            <h2 id="tools-title" class="section-title">Available Inventory Tools</h2>
+            <p class="section-subtitle">
+                Choose the right tool for your Azure environment. More tools coming soon!
+            </p>
+            <div class="tools-grid">
+                
+                <!-- Azure Landing Zone Tool -->
+                <div class="tool-card" data-modal="landing-zone-modal">
+                    <div class="tool-icon">🏗️</div>
+                    <span class="tool-status">✓ Available</span>
+                    <h3 class="tool-title">Azure Landing Zone Documenter</h3>
+                    <p class="tool-description">
+                        Comprehensive inventory tool for Azure Landing Zone environments. 
+                        Scans and documents your hub-spoke topology, VPN gateways, networking, 
+                        DNS zones, security policies, and governance settings.
+                    </p>
+                    <ul class="tool-features">
+                        <li>Virtual Network topology mapping</li>
+                        <li>VPN Gateway configurations</li>
+                        <li>Private DNS zone inventory</li>
+                        <li>Network Security Groups</li>
+                        <li>Resource Groups & tagging</li>
+                        <li>Azure Policy assignments</li>
+                    </ul>
+                    <div class="tool-link" onclick="event.stopPropagation(); openModal('landing-zone-modal')">
+                        Click for Details
+                    </div>
+                </div>
+
+                <!-- Azure Virtual Desktop Tool -->
+                <div class="tool-card" data-modal="avd-modal">
+                    <div class="tool-icon">🖥️</div>
+                    <span class="tool-status">✓ Available</span>
+                    <h3 class="tool-title">Azure Virtual Desktop Documenter</h3>
+                    <p class="tool-description">
+                        Complete documentation generator for Azure Virtual Desktop deployments. 
+                        Captures host pools, session hosts, workspaces, application groups, 
+                        and user assignments in a clean, organized report.
+                    </p>
+                    <ul class="tool-features">
+                        <li>Host Pool configurations</li>
+                        <li>Session Host inventory & status</li>
+                        <li>Application Groups & assignments</li>
+                        <li>Workspace configurations</li>
+                        <li>User session analytics</li>
+                    </ul>
+                    <div class="tool-link" onclick="event.stopPropagation(); openModal('avd-modal')">
+                        Click for Details
+                    </div>
+                </div>
+
+                <!-- Add More Tools Card
+                <div class="add-tool-card">
+                    <div class="add-icon">➕</div>
+                    <h3 class="add-tool-title">Add Your Own Tool</h3>
+                    <p class="add-tool-description">
+                        The modular architecture makes it easy to add new inventory tools. 
+                        Create a new module, register it with the web server, and start documenting 
+                        additional Azure services like Azure Kubernetes Service, Azure SQL, or Storage Accounts.
+                    </p>
+                </div> -->
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" aria-labelledby="features-title">
+        <div class="container">
+            <h2 id="features-title" class="section-title">Why Azure Documenter?</h2>
+            <div class="features-grid">
+                <div class="feature-box">
+                    <div class="feature-icon">🚀</div>
+                    <h3 class="feature-title">Fast & Efficient</h3>
+                    <p class="feature-text">
+                        Generate complete environment documentation in minutes, not hours
+                    </p>
+                </div>
+                <div class="feature-box">
+                    <div class="feature-icon">🔒</div>
+                    <h3 class="feature-title">Secure & Local</h3>
+                    <p class="feature-text">
+                        Runs entirely on your machine. No data leaves your environment
+                    </p>
+                </div>
+                <div class="feature-box">
+                    <div class="feature-icon">📊</div>
+                    <h3 class="feature-title">Interactive Reports</h3>
+                    <p class="feature-text">
+                        Beautiful, browser-based reports with search and filtering capabilities
+                    </p>
+                </div>
+                <div class="feature-box">
+                    <div class="feature-icon">🔧</div>
+                    <h3 class="feature-title">Extensible</h3>
+                    <p class="feature-text">
+                        Modular design makes adding new inventory tools straightforward
+                    </p>
+                </div>
+                <div class="feature-box">
+                    <div class="feature-icon">💡</div>
+                    <h3 class="feature-title">Smart Detection</h3>
+                    <p class="feature-text">
+                        Automatically identifies resource relationships and dependencies
+                    </p>
+                </div>
+                <div class="feature-box">
+                    <div class="feature-icon">📥</div>
+                    <h3 class="feature-title">Export Options</h3>
+                    <p class="feature-text">
+                        Export documentation as HTML, PDF, or JSON for further processing
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer" itemscope itemtype="https://schema.org/Organization">
+        <div class="container">
+            <div class="footer-logo" itemprop="name">Azure Documenter</div>
+            <p style="color: rgba(255,255,255,0.7); margin-bottom: 1.5rem;">
+                <span itemprop="url">www.azuredocumenter.com</span>
+            </p>
+            <div class="footer-links">
+                <a href="https://github.com/GetToThe-Cloud/Website" class="footer-link" target="_blank" rel="noopener noreferrer" itemprop="sameAs">
+                    📦 GitHub Repository
+                </a>
+                <a href="https://www.gettothe.cloud" class="footer-link" target="_blank" rel="noopener noreferrer" itemprop="url">
+                    🌐 GetToThe.Cloud
+                </a>
+                <a href="mailto:info@gettothe.cloud" class="footer-link" itemprop="email">
+                    ✉️ Contact
+                </a>
+            </div>
+            <p class="footer-copyright">
+                © <span itemprop="copyrightYear">2026</span> <span itemprop="copyrightHolder">Azure Documenter</span> | Built with ❤️ for Azure Professionals | 
+                <a href="https://www.gettothe.cloud" style="color: rgba(255,255,255,0.5); text-decoration: none;" target="_blank" rel="noopener">GetToThe.Cloud</a>
+            </p>
+            <p style="color: rgba(255,255,255,0.5); margin-top: 1rem; font-size: 0.9rem;">
+                🔢 Page Visits: <span id="visit-counter" style="color: rgba(255,255,255,0.7); font-weight: 600;">0</span>
+            </p>
+        </div>
+    </footer>
+
+    <!-- Modal: Landing Zone Documenter -->
+    <div id="landing-zone-modal" class="modal-overlay" data-modal-overlay="true">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div class="modal-close" data-close-modal="landing-zone-modal">×</div>
+                <div class="modal-icon">🏗️</div>
+                <h2 class="modal-title">Azure Landing Zone Documenter</h2>
+                <span class="modal-status">✓ Available Now</span>
+            </div>
+            <div class="modal-body">
+                <p class="modal-description">
+                    The Landing Zone Documenter is a powerful PowerShell-based tool that automatically inventories 
+                    your entire Azure Landing Zone infrastructure. It connects to your Azure subscription, 
+                    scans all resources, and generates a comprehensive HTML report with interactive visualizations.
+                </p>
+
+                <div class="modal-highlight">
+                    <p><strong>🎯 Perfect for:</strong> Cloud architects, DevOps engineers, and IT auditors who need 
+                    to document hub-spoke network topologies, maintain compliance records, or onboard new team members 
+                    quickly with comprehensive infrastructure documentation.</p>
+                </div>
+
+                <h3 class="modal-section-title">📋 What Gets Documented</h3>
+                <ul class="modal-features">
+                    <li><strong>Network Architecture:</strong> Virtual networks, subnets, peering connections, and network topology diagrams</li>
+                    <li><strong>VPN Infrastructure:</strong> VPN gateways, local network gateways, connections, and IPsec settings</li>
+                    <li><strong>DNS Management:</strong> Private DNS zones, zone links, and DNS configurations</li>
+                    <li><strong>Security Policies:</strong> Network Security Groups, Application Security Groups, and firewall rules</li>
+                    <li><strong>Resource Organization:</strong> Resource groups, tags, naming conventions, and organizational structure</li>
+                    <li><strong>Governance:</strong> Azure Policy assignments, RBAC roles, and compliance status</li>
+                    <li><strong>Monitoring:</strong> Log Analytics workspaces, diagnostic settings, and monitoring configurations</li>
+                </ul>
+
+                <h3 class="modal-section-title">🚀 Key Features</h3>
+                <ul class="modal-features">
+                    <li>Auto-discovery of all Landing Zone components</li>
+                    <li>Interactive HTML reports with search and filtering</li>
+                    <li>Network topology visualization</li>
+                    <li>Export to PDF</li>
+                    <li>Multi-subscription support</li>
+                    <li>Compliance and security audit reports</li>
+                </ul>
+
+                <h3 class="modal-section-title">🔧 Technology Stack</h3>
+                <div class="modal-tech-stack">
+                    <span class="modal-tech-badge">PowerShell 7+</span>
+                    <span class="modal-tech-badge">Azure PowerShell</span>
+                    <span class="modal-tech-badge">HTML5/CSS3</span>
+                    <span class="modal-tech-badge">REST API</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <a href="https://github.com/GetToThe-Cloud/AzureDocumenter/tree/main/azurelandingzone-inventory" 
+                   target="_blank" rel="noopener noreferrer" class="modal-btn modal-btn-primary"
+                   aria-label="View Azure Landing Zone Documenter on GitHub">
+                    📦 View on GitHub
+                </a>
+                <a href="https://www.gettothe.cloud" 
+                   target="_blank" rel="noopener noreferrer" class="modal-btn modal-btn-secondary"
+                   aria-label="Read Azure Landing Zone documentation">
+                    📖 Documentation
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: AVD Environment Documenter -->
+    <div id="avd-modal" class="modal-overlay" data-modal-overlay="true">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div class="modal-close" data-close-modal="avd-modal">×</div>
+                <div class="modal-icon">🖥️</div>
+                <h2 class="modal-title">AVD Environment Documenter</h2>
+                <span class="modal-status">✓ Available Now</span>
+            </div>
+            <div class="modal-body">
+                <p class="modal-description">
+                    The AVD Environment Documenter provides complete documentation of your Azure Virtual Desktop 
+                    deployment. It analyzes host pools, session hosts, application groups, and user assignments 
+                    to create detailed reports with health status, capacity planning insights, and optimization recommendations.
+                </p>
+
+                <div class="modal-highlight">
+                    <p><strong>🎯 Perfect for:</strong> AVD administrators, support teams, and MSPs who need to track 
+                    session host health, monitor capacity, document user assignments, or troubleshoot AVD issues 
+                    with comprehensive environment insights.</p>
+                </div>
+
+                <h3 class="modal-section-title">📋 What Gets Documented</h3>
+                <ul class="modal-features">
+                    <li><strong>Host Pools:</strong> Configuration details, load balancing settings, and capacity information</li>
+                    <li><strong>Session Hosts:</strong> VM details, status, agent versions, and performance metrics</li>
+                    <li><strong>Application Groups:</strong> Desktop and RemoteApp configurations with user assignments</li>
+                    <li><strong>Workspaces:</strong> Workspace settings and application group associations</li>
+                    <li><strong>User Sessions:</strong> Active sessions, user profiles, and connection history</li>
+                    <li><strong>FSLogix Profiles:</strong> Profile storage configurations and capacity usage</li>
+                    <li><strong>Networking:</strong> Virtual network integration and connectivity details</li>
+                    <li><strong>Installed Applications:</strong> Software inventory across all session hosts</li>
+                </ul>
+
+                <h3 class="modal-section-title">🚀 Key Features</h3>
+                <ul class="modal-features">
+                    <li>Real-time health status monitoring</li>
+                    <li>Capacity planning and utilization reports</li>
+                    <li>User assignment and licensing overview</li>
+                    <li>Session host comparison matrix</li>
+                    <li>Performance baseline recommendations</li>
+                    <li>Application installation automation scripts</li>
+                </ul>
+
+                <h3 class="modal-section-title">🔧 Technology Stack</h3>
+                <div class="modal-tech-stack">
+                    <span class="modal-tech-badge">PowerShell 7+</span>
+                    <span class="modal-tech-badge">Az.DesktopVirtualization</span>
+                    <span class="modal-tech-badge">HTML5/JavaScript</span>
+                    <span class="modal-tech-badge">Azure REST API</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <a href="https://github.com/GetToThe-Cloud/AzureDocumenter/tree/main/azurevirtualdesktop-inventory" 
+                   target="_blank" rel="noopener noreferrer" class="modal-btn modal-btn-primary"
+                   aria-label="View Azure Virtual Desktop Documenter on GitHub">
+                    📦 View on GitHub
+                </a>
+                <a href="https://www.gettothe.cloud" 
+                   target="_blank" rel="noopener noreferrer" class="modal-btn modal-btn-secondary"
+                   aria-label="Read AVD documentation">
+                    📖 Documentation
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            'use strict';
+            
+            // Cache DOM elements
+            const body = document.body;
+            const orbs = document.querySelectorAll('.gradient-orb');
+            
+            // Visit Counter
+            const KEY = 'azure-documenter-visits';
+            const count = (parseInt(localStorage.getItem(KEY)) || 0) + 1;
+            localStorage.setItem(KEY, count);
+            const counter = document.getElementById('visit-counter');
+            if (counter) counter.textContent = count.toLocaleString();
+
+            // Event delegation for modals and smooth scroll
+            document.addEventListener('click', e => {
+                const target = e.target;
+                
+                // Open modal
+                const modalTrigger = target.closest('[data-modal]');
+                if (modalTrigger) {
+                    const modal = document.getElementById(modalTrigger.dataset.modal);
+                    if (modal) {
+                        modal.classList.add('active');
+                        body.style.overflow = 'hidden';
+                    }
+                    return;
+                }
+                
+                // Close modal (click on overlay or close button)
+                const closeBtn = target.closest('[data-close-modal]');
+                if (closeBtn || target.hasAttribute('data-modal-overlay')) {
+                    const modalId = closeBtn ? closeBtn.dataset.closeModal : target.id;
+                    const modal = document.getElementById(modalId) || target;
+                    if (modal.classList.contains('active')) {
+                        modal.classList.remove('active');
+                        body.style.overflow = 'auto';
+                    }
+                    return;
+                }
+                
+                // Smooth scroll
+                const anchor = target.closest('a[href^="#"]');
+                if (anchor) {
+                    e.preventDefault();
+                    const el = document.querySelector(anchor.getAttribute('href'));
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+
+            // Parallax scroll effect
+            let ticking = false;
+            window.addEventListener('scroll', () => {
+                if (!ticking) {
+                    requestAnimationFrame(() => {
+                        const scrolled = window.pageYOffset;
+                        orbs.forEach((orb, i) => {
+                            orb.style.transform = `translateY(${scrolled * (0.1 + i * 0.05)}px)`;
+                        });
+                        ticking = false;
+                    });
+                    ticking = true;
+                }
+            });
+
+            // Intersection Observer for animations
+            const observer = new IntersectionObserver(entries => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const el = entry.target;
+                        el.style.cssText = 'opacity:0;transform:translateY(20px)';
+                        setTimeout(() => {
+                            el.style.cssText = 'transition:all .6s ease-out;opacity:1;transform:translateY(0)';
+                        }, 50);
+                        observer.unobserve(el);
+                    }
+                });
+            }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+            document.querySelectorAll('.tool-card, .step, .feature-box, .add-tool-card').forEach(el => observer.observe(el));
+
+            // Close modals on Escape
+            document.addEventListener('keydown', e => {
+                if (e.key === 'Escape') {
+                    document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
+                    body.style.overflow = 'auto';
+                }
+            });
+        })();
+    </script>
+</body>
+</html>
