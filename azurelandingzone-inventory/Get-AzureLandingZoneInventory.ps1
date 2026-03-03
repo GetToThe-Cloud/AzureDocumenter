@@ -28,7 +28,9 @@ function Get-AzureLandingZoneInventory {
             peerings = @()
             vpnGateways = @()
             expressRoutes = @()
+            virtualWans = @()
             firewalls = @()
+            firewallPolicies = @()
             networkSecurityGroups = @()
             privateDnsZones = @()
             privateEndpoints = @()
@@ -56,6 +58,9 @@ function Get-AzureLandingZoneInventory {
             totalVMs = 0
             totalPrivateDnsZones = 0
             totalPrivateEndpoints = 0
+            totalVirtualWans = 0
+            totalFirewalls = 0
+            totalFirewallPolicies = 0
         }
         explanations = @{
             overview = @"
@@ -526,21 +531,154 @@ Move Strategy:
                         try {
                             $fw = Get-AzFirewall -ResourceGroupName $fwResource.ResourceGroupName -Name $fwResource.Name -ErrorAction SilentlyContinue
                             if ($fw) {
+                                # Check if using Firewall Policy
+                                $firewallPolicyId = $null
+                                $firewallPolicyName = $null
+                                $totalRules = 0
+                                
+                                if ($fw.FirewallPolicy -and $fw.FirewallPolicy.Id) {
+                                    $firewallPolicyId = $fw.FirewallPolicy.Id
+                                    $firewallPolicyName = Split-Path $firewallPolicyId -Leaf
+                                } else {
+                                    # Classic rules (not using policy)
+                                    $totalRules = $fw.ApplicationRuleCollections.Count + $fw.NetworkRuleCollections.Count + $fw.NatRuleCollections.Count
+                                }
+                                
                                 $inventory.networking.firewalls += @{
                                     name = $fw.Name
                                     resourceGroup = $fw.ResourceGroupName
                                     location = $fw.Location
                                     tier = $fw.Sku.Tier
                                     threatIntelMode = $fw.ThreatIntelMode
-                                    applicationRules = $fw.ApplicationRuleCollections.Count
-                                    networkRules = $fw.NetworkRuleCollections.Count
-                                    natRules = $fw.NatRuleCollections.Count
+                                    applicationRuleCollections = $fw.ApplicationRuleCollections.Count
+                                    networkRuleCollections = $fw.NetworkRuleCollections.Count
+                                    natRuleCollections = $fw.NatRuleCollections.Count
+                                    totalClassicRules = $totalRules
+                                    firewallPolicyId = $firewallPolicyId
+                                    firewallPolicyName = $firewallPolicyName
+                                    usingPolicy = ($null -ne $firewallPolicyId)
                                     subscription = $sub.Name
                                 }
                             }
                         } catch {}
                     }
+                    $inventory.summary.totalFirewalls += $firewallResources.Count
                 } catch {}
+                
+                # Azure Firewall Policies
+                try {
+                    $firewallPolicyResources = Get-AzResource -ResourceType 'Microsoft.Network/firewallPolicies' -ErrorAction SilentlyContinue
+                    foreach ($policyResource in $firewallPolicyResources) {
+                        try {
+                            $policy = Get-AzFirewallPolicy -ResourceGroupName $policyResource.ResourceGroupName -Name $policyResource.Name -ErrorAction SilentlyContinue
+                            if ($policy) {
+                                # Count rule collection groups and their rules
+                                $ruleCollectionGroups = Get-AzFirewallPolicyRuleCollectionGroup -ResourceGroupName $policy.ResourceGroupName -AzureFirewallPolicyName $policy.Name -ErrorAction SilentlyContinue
+                                
+                                $totalRuleCollections = 0
+                                $totalRules = 0
+                                $applicationRuleCollections = 0
+                                $networkRuleCollections = 0
+                                $natRuleCollections = 0
+                                
+                                foreach ($rcGroup in $ruleCollectionGroups) {
+                                    if ($rcGroup.Properties.RuleCollection) {
+                                        $totalRuleCollections += $rcGroup.Properties.RuleCollection.Count
+                                        
+                                        foreach ($rc in $rcGroup.Properties.RuleCollection) {
+                                            if ($rc.Rules) {
+                                                $ruleCount = $rc.Rules.Count
+                                                $totalRules += $ruleCount
+                                                
+                                                # Categorize by type
+                                                if ($rc.RuleCollectionType -eq 'FirewallPolicyFilterRuleCollection') {
+                                                    if ($rc.Rules[0].RuleType -eq 'ApplicationRule') {
+                                                        $applicationRuleCollections++
+                                                    } elseif ($rc.Rules[0].RuleType -eq 'NetworkRule') {
+                                                        $networkRuleCollections++
+                                                    }
+                                                } elseif ($rc.RuleCollectionType -eq 'FirewallPolicyNatRuleCollection') {
+                                                    $natRuleCollections++
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                $inventory.networking.firewallPolicies += @{
+                                    name = $policy.Name
+                                    id = $policy.Id
+                                    resourceGroup = $policy.ResourceGroupName
+                                    location = $policy.Location
+                                    tier = $policy.Sku.Tier
+                                    threatIntelMode = $policy.ThreatIntelMode
+                                    threatIntelWhitelist = if ($policy.ThreatIntelWhitelist) { $true } else { $false }
+                                    dnsSettings = if ($policy.DnsSettings) { $true } else { $false }
+                                    intrusionDetection = if ($policy.IntrusionDetection) { $policy.IntrusionDetection.Mode } else { 'Off' }
+                                    ruleCollectionGroups = $ruleCollectionGroups.Count
+                                    totalRuleCollections = $totalRuleCollections
+                                    totalRules = $totalRules
+                                    applicationRuleCollections = $applicationRuleCollections
+                                    networkRuleCollections = $networkRuleCollections
+                                    natRuleCollections = $natRuleCollections
+                                    basePolicy = if ($policy.BasePolicy) { Split-Path $policy.BasePolicy.Id -Leaf } else { $null }
+                                    subscription = $sub.Name
+                                }
+                            }
+                        } catch {
+                            Write-Host "      ⚠️  Error processing Firewall Policy: $($policyResource.Name)" -ForegroundColor Yellow
+                        }
+                    }
+                    $inventory.summary.totalFirewallPolicies += $firewallPolicyResources.Count
+                } catch {
+                    Write-Host "      ⚠️  Error collecting Firewall Policies" -ForegroundColor Yellow
+                }
+                
+                # Virtual WANs
+                try {
+                    $vwanResources = Get-AzResource -ResourceType 'Microsoft.Network/virtualWans' -ErrorAction SilentlyContinue
+                    foreach ($vwanResource in $vwanResources) {
+                        try {
+                            $vwan = Get-AzVirtualWan -ResourceGroupName $vwanResource.ResourceGroupName -Name $vwanResource.Name -ErrorAction SilentlyContinue
+                            if ($vwan) {
+                                # Get Virtual Hubs associated with this VWAN
+                                $vHubs = Get-AzVirtualHub -ErrorAction SilentlyContinue | Where-Object { 
+                                    $_.VirtualWan.Id -eq $vwan.Id 
+                                }
+                                
+                                $hubDetails = @()
+                                foreach ($hub in $vHubs) {
+                                    $hubDetails += @{
+                                        name = $hub.Name
+                                        location = $hub.Location
+                                        addressPrefix = $hub.AddressPrefix
+                                        routingState = $hub.RoutingState
+                                    }
+                                }
+                                
+                                $inventory.networking.virtualWans += @{
+                                    name = $vwan.Name
+                                    id = $vwan.Id
+                                    resourceGroup = $vwan.ResourceGroupName
+                                    location = $vwan.Location
+                                    type = $vwan.Type
+                                    allowBranchToBranchTraffic = $vwan.AllowBranchToBranchTraffic
+                                    allowVnetToVnetTraffic = $vwan.AllowVnetToVnetTraffic
+                                    disableVpnEncryption = $vwan.DisableVpnEncryption
+                                    virtualHubCount = $vHubs.Count
+                                    virtualHubs = $hubDetails
+                                    tags = $vwan.Tag
+                                    subscription = $sub.Name
+                                }
+                            }
+                        } catch {
+                            Write-Host "      ⚠️  Error processing Virtual WAN: $($vwanResource.Name)" -ForegroundColor Yellow
+                        }
+                    }
+                    $inventory.summary.totalVirtualWans += $vwanResources.Count
+                } catch {
+                    Write-Host "      ⚠️  Error collecting Virtual WANs" -ForegroundColor Yellow
+                }
                 
                 # Network Security Groups - use Get-AzResource to find them
                 try {

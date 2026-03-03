@@ -192,6 +192,7 @@ function populateUI() {
     document.getElementById('totalRoleAssignments').textContent = summary.totalRoleAssignments || 0;
     document.getElementById('totalVNets').textContent = summary.totalVNets || 0;
     document.getElementById('totalPeerings').textContent = summary.totalPeerings || 0;
+    document.getElementById('totalVirtualWans').textContent = summary.totalVirtualWans || 0;
     document.getElementById('totalPrivateDnsZones').textContent = summary.totalPrivateDnsZones || 0;
     document.getElementById('totalPrivateEndpoints').textContent = summary.totalPrivateEndpoints || 0;
     document.getElementById('totalVMs').textContent = summary.totalVMs || 0;
@@ -414,21 +415,79 @@ function populateNetworking() {
         `).join('');
     }
     
+    // Virtual WANs
+    const vwanTbody = document.getElementById('virtualWansTableBody');
+    const vwans = networking.virtualWans || [];
+    
+    if (vwans.length === 0) {
+        vwanTbody.innerHTML = '<tr><td colspan="7">No Virtual WANs found</td></tr>';
+    } else {
+        vwanTbody.innerHTML = vwans.map(vwan => `
+            <tr>
+                <td><strong>${vwan.name || 'N/A'}</strong></td>
+                <td>${vwan.resourceGroup || 'N/A'}</td>
+                <td>${vwan.location || 'N/A'}</td>
+                <td>${vwan.virtualHubCount || 0} hubs</td>
+                <td>${vwan.allowBranchToBranchTraffic ? '✓' : '✗'}</td>
+                <td>${vwan.allowVnetToVnetTraffic ? '✓' : '✗'}</td>
+                <td><small>${vwan.subscription || 'N/A'}</small></td>
+            </tr>
+        `).join('');
+    }
+    
     // Firewalls
     const fwTbody = document.getElementById('firewallsTableBody');
     const firewalls = networking.firewalls || [];
     
     if (firewalls.length === 0) {
-        fwTbody.innerHTML = '<tr><td colspan="6">No Azure Firewalls found</td></tr>';
+        fwTbody.innerHTML = '<tr><td colspan="8">No Azure Firewalls found</td></tr>';
     } else {
-        fwTbody.innerHTML = firewalls.map(fw => `
+        fwTbody.innerHTML = firewalls.map(fw => {
+            let policyRulesInfo = '';
+            if (fw.usingPolicy && fw.firewallPolicyName) {
+                policyRulesInfo = `Policy: ${fw.firewallPolicyName}`;
+            } else {
+                policyRulesInfo = `Classic Rules: ${fw.totalClassicRules || 0}`;
+            }
+            
+            const ruleCollectionsInfo = fw.usingPolicy 
+                ? 'See Policy' 
+                : `App: ${fw.applicationRuleCollections || 0}, Net: ${fw.networkRuleCollections || 0}, NAT: ${fw.natRuleCollections || 0}`;
+            
+            return `
+                <tr>
+                    <td><strong>${fw.name || 'N/A'}</strong></td>
+                    <td>${fw.resourceGroup || 'N/A'}</td>
+                    <td>${fw.location || 'N/A'}</td>
+                    <td>${fw.tier || 'N/A'}</td>
+                    <td>${policyRulesInfo}</td>
+                    <td>${ruleCollectionsInfo}</td>
+                    <td>${fw.threatIntelMode || 'N/A'}</td>
+                    <td><small>${fw.subscription || 'N/A'}</small></td>
+                </tr>
+            `;
+        }).join('');
+    }
+    
+    // Firewall Policies
+    const fwPolicyTbody = document.getElementById('firewallPoliciesTableBody');
+    const firewallPolicies = networking.firewallPolicies || [];
+    
+    if (firewallPolicies.length === 0) {
+        fwPolicyTbody.innerHTML = '<tr><td colspan="10">No Firewall Policies found</td></tr>';
+    } else {
+        fwPolicyTbody.innerHTML = firewallPolicies.map(policy => `
             <tr>
-                <td><strong>${fw.name || 'N/A'}</strong></td>
-                <td>${fw.resourceGroup || 'N/A'}</td>
-                <td>${fw.location || 'N/A'}</td>
-                <td>${fw.tier || 'N/A'}</td>
-                <td>${fw.threatIntelMode || 'N/A'}</td>
-                <td><small>${fw.subscription || 'N/A'}</small></td>
+                <td><strong>${policy.name || 'N/A'}</strong></td>
+                <td>${policy.resourceGroup || 'N/A'}</td>
+                <td>${policy.location || 'N/A'}</td>
+                <td>${policy.tier || 'N/A'}</td>
+                <td><strong>${policy.totalRules || 0}</strong></td>
+                <td>${policy.applicationRuleCollections || 0}</td>
+                <td>${policy.networkRuleCollections || 0}</td>
+                <td>${policy.natRuleCollections || 0}</td>
+                <td>${policy.intrusionDetection || 'Off'}</td>
+                <td><small>${policy.subscription || 'N/A'}</small></td>
             </tr>
         `).join('');
     }
@@ -745,6 +804,83 @@ async function exportToPDF() {
             }
         }
         
+        // Helper function to add a table
+        function addTable(headers, rows, columnWidths) {
+            const tableWidth = columnWidths.reduce((a, b) => a + b, 0);
+            const tableX = margin;
+            
+            // Check if we need a new page
+            const estimatedHeight = (rows.length + 2) * 6;
+            if (yPos + estimatedHeight > pageHeight) {
+                pdf.addPage();
+                yPos = 20;
+            }
+            
+            // Draw header
+            pdf.setFillColor(0, 120, 212);
+            pdf.rect(tableX, yPos, tableWidth, 7, 'F');
+            
+            pdf.setTextColor(255, 255, 255);
+            pdf.setFontSize(8);
+            pdf.setFont(undefined, 'bold');
+            
+            let xOffset = tableX + 1;
+            headers.forEach((header, i) => {
+                pdf.text(header, xOffset, yPos + 5);
+                xOffset += columnWidths[i];
+            });
+            yPos += 7;
+            
+            // Draw rows
+            pdf.setTextColor(0, 0, 0);
+            pdf.setFont(undefined, 'normal');
+            pdf.setFontSize(7);
+            
+            rows.forEach((row, rowIndex) => {
+                // Check if we need a new page
+                if (yPos > pageHeight - 10) {
+                    pdf.addPage();
+                    yPos = 20;
+                    
+                    // Redraw header on new page
+                    pdf.setFillColor(0, 120, 212);
+                    pdf.rect(tableX, yPos, tableWidth, 7, 'F');
+                    pdf.setTextColor(255, 255, 255);
+                    pdf.setFontSize(8);
+                    pdf.setFont(undefined, 'bold');
+                    
+                    xOffset = tableX + 1;
+                    headers.forEach((header, i) => {
+                        pdf.text(header, xOffset, yPos + 5);
+                        xOffset += columnWidths[i];
+                    });
+                    yPos += 7;
+                    
+                    pdf.setTextColor(0, 0, 0);
+                    pdf.setFont(undefined, 'normal');
+                    pdf.setFontSize(7);
+                }
+                
+                // Alternate row colors
+                if (rowIndex % 2 === 0) {
+                    pdf.setFillColor(245, 248, 250);
+                    pdf.rect(tableX, yPos, tableWidth, 6, 'F');
+                }
+                
+                xOffset = tableX + 1;
+                row.forEach((cell, i) => {
+                    const cellText = String(cell || 'N/A');
+                    const maxCellWidth = columnWidths[i] - 2;
+                    const truncated = pdf.splitTextToSize(cellText, maxCellWidth)[0] || '';
+                    pdf.text(truncated, xOffset, yPos + 4);
+                    xOffset += columnWidths[i];
+                });
+                yPos += 6;
+            });
+            
+            yPos += 3;
+        }
+        
         // Cover Page
         pdf.setFontSize(24);
         pdf.setFont(undefined, 'bold');
@@ -801,9 +937,13 @@ async function exportToPDF() {
         addBullet(`RBAC Role Assignments: ${summary.totalRoleAssignments || 0}`);
         addBullet(`Virtual Networks: ${summary.totalVNets || 0}`);
         addBullet(`VNet Peerings: ${summary.totalPeerings || 0}`);
-        addBullet(`Azure Firewalls: ${inventoryData.networking?.firewalls?.length || 0}`);
+        addBullet(`Virtual WANs: ${summary.totalVirtualWans || 0}`);
+        addBullet(`Azure Firewalls: ${summary.totalFirewalls || 0}`);
+        addBullet(`Firewall Policies: ${summary.totalFirewallPolicies || 0}`);
         addBullet(`VPN Gateways: ${inventoryData.networking?.vpnGateways?.length || 0}`);
         addBullet(`Network Security Groups: ${inventoryData.networking?.networkSecurityGroups?.length || 0}`);
+        addBullet(`Private DNS Zones: ${summary.totalPrivateDnsZones || 0}`);
+        addBullet(`Private Endpoints: ${summary.totalPrivateEndpoints || 0}`);
         addBullet(`Cost Management Budgets: ${summary.totalBudgets || 0}`);
         addBullet(`Resource Locks: ${summary.totalLocks || 0}`);
         addBullet(`Virtual Machines: ${summary.totalVMs || 0}`);
@@ -1320,88 +1460,139 @@ async function exportToPDF() {
                 yPos += 5;
             }
             
-            // VNet Summary
-            addSubSection(`Virtual Networks (${summary.totalVNets})`);
-            
-            if (inventoryData.networking?.vnets) {
-                inventoryData.networking.vnets.forEach(vnet => {
-                    if (yPos > pageHeight - 25) {
-                        pdf.addPage();
-                        yPos = 20;
-                    }
-                    
-                    pdf.setFont(undefined, 'bold');
-                    addBullet(`${vnet.name}`, 0);
-                    pdf.setFont(undefined, 'normal');
-                    addBullet(`Location: ${vnet.location}`, 5);
-                    addBullet(`Address Space: ${vnet.addressSpace?.join(', ') || 'N/A'}`, 5);
-                    if (vnet.subnets && vnet.subnets.length > 0) {
-                        addBullet(`Subnets: ${vnet.subnets.length} (${vnet.subnets.map(s => s.name).slice(0, 3).join(', ')})`, 5);
-                    }
-                    if (vnet.peerings && vnet.peerings.length > 0) {
-                        addBullet(`Peerings: ${vnet.peerings.length}`, 5);
-                    }
-                    yPos += 2;
-                });
-            }
-            yPos += 5;
-            
-            // VNet Peerings
-            if (summary.totalPeerings > 0 && inventoryData.networking?.peerings) {
-                addSubSection(`VNet Peerings (${summary.totalPeerings})`);
-                
-                inventoryData.networking.peerings.forEach(peer => {
-                    if (yPos > pageHeight - 30) {
-                        pdf.addPage();
-                        yPos = 20;
-                    }
-                    
-                    pdf.setFont(undefined, 'bold');
-                    addBullet(`${peer.name || 'Unnamed Peering'}`, 0);
-                    pdf.setFont(undefined, 'normal');
-                    addBullet(`Source VNet: ${peer.sourceVNet || 'N/A'}`, 5);
-                    addBullet(`Remote VNet: ${peer.remoteVNet || 'N/A'}`, 5);
-                    
-                    // Peering state with color
-                    const stateColor = peer.peeringState === 'Connected' ? [16, 185, 129] : [239, 68, 68];
-                    pdf.setTextColor(...stateColor);
-                    addBullet(`State: ${peer.peeringState || 'Unknown'}`, 5);
-                    pdf.setTextColor(0, 0, 0);
-                    
-                    // Configuration details
-                    const config = [];
-                    if (peer.allowVirtualNetworkAccess) config.push('VNet Access');
-                    if (peer.allowForwardedTraffic) config.push('Forwarded Traffic');
-                    if (peer.allowGatewayTransit) config.push('Gateway Transit');
-                    if (peer.useRemoteGateways) config.push('Use Remote Gateways');
-                    
-                    if (config.length > 0) {
-                        addBullet(`Configuration: ${config.join(', ')}`, 5);
-                    }
-                    
-                    if (peer.provisioningState) {
-                        addBullet(`Provisioning: ${peer.provisioningState}`, 5);
-                    }
-                    
-                    yPos += 2;
+            // Virtual WAN Check
+            if (inventoryData.networking?.virtualWans && inventoryData.networking.virtualWans.length > 0) {
+                addSubSection(`Virtual WAN Detected (${inventoryData.networking.virtualWans.length})`);
+                inventoryData.networking.virtualWans.forEach(vwan => {
+                    addBullet(`${vwan.name} - ${vwan.virtualHubCount || 0} virtual hubs`);
+                    addBullet(`Branch-to-Branch: ${vwan.allowBranchToBranchTraffic ? 'Enabled' : 'Disabled'}`, 5);
+                    addBullet(`VNet-to-VNet: ${vwan.allowVnetToVnetTraffic ? 'Enabled' : 'Disabled'}`, 5);
                 });
                 yPos += 5;
             }
             
-            // Network Security
-            if (inventoryData.networking?.firewalls?.length > 0 || inventoryData.networking?.networkSecurityGroups?.length > 0) {
-                addSubSection('Network Security Components');
-                if (inventoryData.networking.firewalls.length > 0) {
-                    addBullet(`Azure Firewalls: ${inventoryData.networking.firewalls.length}`);
+            // VNet Table
+            addSubSection(`Virtual Networks (${summary.totalVNets})`);
+            yPos += 2;
+            
+            if (inventoryData.networking?.vnets && inventoryData.networking.vnets.length > 0) {
+                const vnetRows = inventoryData.networking.vnets.map(vnet => [
+                    vnet.name || 'N/A',
+                    vnet.location || 'N/A',
+                    vnet.addressSpace?.join(', ') || 'N/A',
+                    vnet.subnets?.length || 0,
+                    vnet.subscription || 'N/A'
+                ]);
+                
+                addTable(
+                    ['Name', 'Location', 'Address Space', 'Subnets', 'Subscription'],
+                    vnetRows,
+                    [40, 25, 50, 15, 40]
+                );
+            }
+            yPos += 5;
+            
+            // VNet Peerings Table
+            if (summary.totalPeerings > 0 && inventoryData.networking?.peerings) {
+                addSubSection(`VNet Peerings (${summary.totalPeerings})`);
+                yPos += 2;
+                
+                const peeringRows = inventoryData.networking.peerings.map(peer => [
+                    peer.name || 'N/A',
+                    peer.sourceVNet || 'N/A',
+                    peer.remoteVNet || 'N/A',
+                    peer.peeringState || 'Unknown',
+                    peer.allowForwardedTraffic ? 'Yes' : 'No',
+                    peer.subscription || 'N/A'
+                ]);
+                
+                addTable(
+                    ['Peering Name', 'Source VNet', 'Remote VNet', 'State', 'Fwd Traffic', 'Subscription'],
+                    peeringRows,
+                    [35, 30, 30, 20, 20, 35]
+                );
+                yPos += 5;
+            }
+            
+            // Azure Firewalls Table
+            if (inventoryData.networking?.firewalls && inventoryData.networking.firewalls.length > 0) {
+                if (yPos > pageHeight - 30) {
+                    pdf.addPage();
+                    yPos = 20;
                 }
-                if (inventoryData.networking.networkSecurityGroups.length > 0) {
+                
+                addSubSection(`Azure Firewalls (${inventoryData.networking.firewalls.length})`);
+                yPos += 2;
+                
+                const firewallRows = inventoryData.networking.firewalls.map(fw => {
+                    let rules = '';
+                    if (fw.usingPolicy && fw.firewallPolicyName) {
+                        rules = `Policy: ${fw.firewallPolicyName}`;
+                    } else {
+                        rules = `Classic: ${fw.totalClassicRules || 0}`;
+                    }
+                    
+                    return [
+                        fw.name || 'N/A',
+                        fw.location || 'N/A',
+                        fw.tier || 'N/A',
+                        rules,
+                        fw.threatIntelMode || 'N/A',
+                        fw.subscription || 'N/A'
+                    ];
+                });
+                
+                addTable(
+                    ['Name', 'Location', 'Tier', 'Rules/Policy', 'Threat Intel', 'Subscription'],
+                    firewallRows,
+                    [35, 20, 20, 40, 25, 30]
+                );
+                yPos += 5;
+            }
+            
+            // Firewall Policies Table
+            if (inventoryData.networking?.firewallPolicies && inventoryData.networking.firewallPolicies.length > 0) {
+                if (yPos > pageHeight - 30) {
+                    pdf.addPage();
+                    yPos = 20;
+                }
+                
+                addSubSection(`Azure Firewall Policies (${inventoryData.networking.firewallPolicies.length})`);
+                yPos += 2;
+                
+                const policyRows = inventoryData.networking.firewallPolicies.map(policy => [
+                    policy.name || 'N/A',
+                    policy.location || 'N/A',
+                    policy.tier || 'N/A',
+                    policy.totalRules || 0,
+                    `A:${policy.applicationRuleCollections || 0} N:${policy.networkRuleCollections || 0} NAT:${policy.natRuleCollections || 0}`,
+                    policy.intrusionDetection || 'Off',
+                    policy.subscription || 'N/A'
+                ]);
+                
+                addTable(
+                    ['Policy Name', 'Location', 'Tier', 'Total Rules', 'Collections', 'IDS', 'Subscription'],
+                    policyRows,
+                    [30, 20, 15, 18, 30, 15, 32]
+                );
+                yPos += 5;
+            }
+            
+            // Network Security Summary
+            if (inventoryData.networking?.networkSecurityGroups?.length > 0 || 
+                inventoryData.networking?.vpnGateways?.length > 0) {
+                addSubSection('Additional Network Security Components');
+                if (inventoryData.networking.networkSecurityGroups?.length > 0) {
                     addBullet(`Network Security Groups: ${inventoryData.networking.networkSecurityGroups.length}`);
                 }
                 if (inventoryData.networking.vpnGateways?.length > 0) {
                     addBullet(`VPN Gateways: ${inventoryData.networking.vpnGateways.length}`);
                 }
-                if (inventoryData.networking.expressRoutes?.length > 0) {
-                    addBullet(`ExpressRoute Circuits: ${inventoryData.networking.expressRoutes.length}`);
+                if (inventoryData.networking.privateDnsZones?.length > 0) {
+                    addBullet(`Private DNS Zones: ${inventoryData.networking.privateDnsZones.length}`);
+                }
+                if (inventoryData.networking.privateEndpoints?.length > 0) {
+                    addBullet(`Private Endpoints: ${inventoryData.networking.privateEndpoints.length}`);
                 }
                 yPos += 5;
             }

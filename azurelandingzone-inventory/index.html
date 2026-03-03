@@ -145,6 +145,13 @@
                                 <p>VNet Peerings</p>
                             </div>
                         </div>
+                        <div class="card">
+                            <div class="card-icon">🌐</div>
+                            <div class="card-content">
+                                <h3 id="totalVirtualWans">0</h3>
+                                <p>Virtual WANs</p>
+                            </div>
+                        </div>
                         <div class="card">                            <div class="card-icon">🔐</div>
                             <div class="card-content">
                                 <h3 id="totalPrivateEndpoints">0</h3>
@@ -483,6 +490,28 @@
                     </div>
 
                     <div class="subsection">
+                        <h3>Virtual WANs</h3>
+                        <div class="data-table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Resource Group</th>
+                                        <th>Location</th>
+                                        <th>Virtual Hubs</th>
+                                        <th>Branch-to-Branch</th>
+                                        <th>VNet-to-VNet</th>
+                                        <th>Subscription</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="virtualWansTableBody">
+                                    <tr><td colspan="7">Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="subsection">
                         <h3>Azure Firewalls</h3>
                         <div class="data-table-container">
                             <table class="data-table">
@@ -492,12 +521,39 @@
                                         <th>Resource Group</th>
                                         <th>Location</th>
                                         <th>Tier</th>
+                                        <th>Policy/Rules</th>
+                                        <th>Rule Collections</th>
                                         <th>Threat Intel Mode</th>
                                         <th>Subscription</th>
                                     </tr>
                                 </thead>
                                 <tbody id="firewallsTableBody">
-                                    <tr><td colspan="6">Loading...</td></tr>
+                                    <tr><td colspan="8">Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="subsection">
+                        <h3>Azure Firewall Policies</h3>
+                        <div class="data-table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Resource Group</th>
+                                        <th>Location</th>
+                                        <th>Tier</th>
+                                        <th>Total Rules</th>
+                                        <th>App Rules</th>
+                                        <th>Network Rules</th>
+                                        <th>NAT Rules</th>
+                                        <th>Intrusion Detection</th>
+                                        <th>Subscription</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="firewallPoliciesTableBody">
+                                    <tr><td colspan="10">Loading...</td></tr>
                                 </tbody>
                             </table>
                         </div>
