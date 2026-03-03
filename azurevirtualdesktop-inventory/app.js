@@ -1509,6 +1509,29 @@ async function exportToPDF() {
             return [239, 68, 68];
         }
         
+        // Function to capture architecture diagram
+        async function captureArchitectureDiagram() {
+            const diagramContainer = document.getElementById('networkDiagram');
+            if (!diagramContainer || !diagramContainer.querySelector('canvas')) {
+                return null;
+            }
+            
+            try {
+                const canvas = await html2canvas(diagramContainer, {
+                    backgroundColor: '#ffffff',
+                    scale: 2,
+                    logging: false
+                });
+                return canvas.toDataURL('image/png');
+            } catch (error) {
+                console.error('Error capturing diagram:', error);
+                return null;
+            }
+        }
+        
+        // Capture diagram before generating PDF
+        const diagramImage = await captureArchitectureDiagram();
+        
         // === COVER PAGE ===
         pdf.setFontSize(24);
         pdf.setFont(undefined, 'bold');
@@ -1708,6 +1731,33 @@ async function exportToPDF() {
                 });
             }
             yPos += 5;
+            
+            // === ARCHITECTURE DIAGRAM ===
+            if (diagramImage) {
+                pdf.addPage();
+                yPos = 20;
+                
+                addText('ARCHITECTURE DIAGRAM', 16, true, [0, 120, 212]);
+                yPos += 5;
+                
+                addText('The following diagram shows the topology and relationships between AVD components in your environment:');
+                yPos += 10;
+                
+                // Calculate dimensions to fit the page
+                const maxDiagramWidth = pageWidth - (2 * margin);
+                const maxDiagramHeight = pageHeight - yPos - 30;
+                
+                // Add the diagram image
+                try {
+                    pdf.addImage(diagramImage, 'PNG', margin, yPos, maxDiagramWidth, maxDiagramHeight);
+                    yPos += maxDiagramHeight + 10;
+                } catch (error) {
+                    console.error('Error adding diagram to PDF:', error);
+                    addText('Diagram could not be rendered in PDF export.');
+                }
+                
+                yPos += 5;
+            }
             
             // === DETAILED INVENTORY ===
             pdf.addPage();
@@ -2018,131 +2068,207 @@ async function exportToPDF() {
                     yPos += 3;
                 }
                 
-                // Scaling Plans - Enhanced Details
+                // Scaling Plans - Table Format
                 if (sub.scalingPlans && sub.scalingPlans.length > 0) {
                     if (yPos > pageHeight - 30) {
                         pdf.addPage();
                         yPos = 20;
                     }
+                    
                     addText('Scaling Plans:', 11, true);
+                    yPos += 3;
                     
                     sub.scalingPlans.forEach(sp => {
-                        if (yPos > pageHeight - 100) {
+                        if (yPos > pageHeight - 40) {
                             pdf.addPage();
                             yPos = 20;
                         }
                         
-                        // Scaling Plan Name
+                        // Scaling Plan Header
                         pdf.setFont(undefined, 'bold');
-                        addBullet(`${sp.name}`, 0);
+                        pdf.setFontSize(10);
+                        pdf.text(sp.name, margin, yPos);
+                        yPos += 5;
                         pdf.setFont(undefined, 'normal');
                         
-                        // Friendly Name and Description
+                        // Basic Info Table
+                        const basicInfoData = [];
                         if (sp.friendlyName) {
-                            addBullet(`Friendly Name: ${sp.friendlyName}`, 5);
+                            basicInfoData.push(['Friendly Name', sp.friendlyName]);
                         }
                         if (sp.description) {
-                            addBullet(`Description: ${sp.description}`, 5);
+                            basicInfoData.push(['Description', sp.description]);
                         }
-                        
-                        // Basic Configuration
-                        addBullet(`Location: ${sp.location} | Resource Group: ${sp.resourceGroup}`, 5);
-                        addBullet(`Host Pool Type: ${sp.hostPoolType || 'Not specified'}`, 5);
-                        addBullet(`Time Zone: ${sp.timeZone || 'Not specified'}`, 5);
-                        
+                        basicInfoData.push(['Location', sp.location]);
+                        basicInfoData.push(['Resource Group', sp.resourceGroup]);
+                        basicInfoData.push(['Host Pool Type', sp.hostPoolType || 'Not specified']);
+                        basicInfoData.push(['Time Zone', sp.timeZone || 'Not specified']);
                         if (sp.exclusionTag) {
-                            addBullet(`Exclusion Tag: ${sp.exclusionTag}`, 5);
+                            basicInfoData.push(['Exclusion Tag', sp.exclusionTag]);
                         }
                         
-                        // Host Pool References
+                        pdf.autoTable({
+                            startY: yPos,
+                            head: [['Property', 'Value']],
+                            body: basicInfoData,
+                            theme: 'grid',
+                            headStyles: { fillColor: [0, 120, 212], fontSize: 9 },
+                            bodyStyles: { fontSize: 8 },
+                            margin: { left: margin, right: margin },
+                            tableWidth: 'auto',
+                            columnStyles: {
+                                0: { cellWidth: 50 },
+                                1: { cellWidth: 120 }
+                            }
+                        });
+                        yPos = pdf.lastAutoTable.finalY + 5;
+                        
+                        // Host Pool Assignments Table
                         if (sp.hostPoolReferences && sp.hostPoolReferences.length > 0) {
-                            addBullet(`Assigned to Host Pools: ${sp.hostPoolReferences.length}`, 5);
+                            if (yPos > pageHeight - 40) {
+                                pdf.addPage();
+                                yPos = 20;
+                            }
                             
-                            sp.hostPoolReferences.forEach(hpRef => {
+                            pdf.setFontSize(9);
+                            pdf.setFont(undefined, 'bold');
+                            pdf.text('Assigned Host Pools:', margin, yPos);
+                            yPos += 4;
+                            pdf.setFont(undefined, 'normal');
+                            
+                            const hostPoolData = sp.hostPoolReferences.map(hpRef => {
                                 const hpName = hpRef.hostPoolArmPath.split('/').pop();
-                                const enabledStatus = hpRef.scalingPlanEnabled ? 'Enabled [+]' : 'Disabled [-]';
-                                addBullet(`- ${hpName}: ${enabledStatus}`, 10);
+                                const status = hpRef.scalingPlanEnabled ? 'Enabled' : 'Disabled';
+                                return [hpName, status];
                             });
-                        } else {
-                            addBullet(`Assigned to Host Pools: 0 (not assigned) [-]`, 5);
+                            
+                            pdf.autoTable({
+                                startY: yPos,
+                                head: [['Host Pool', 'Status']],
+                                body: hostPoolData,
+                                theme: 'striped',
+                                headStyles: { fillColor: [41, 128, 185], fontSize: 8 },
+                                bodyStyles: { fontSize: 8 },
+                                margin: { left: margin + 5, right: margin },
+                                tableWidth: 'auto',
+                                columnStyles: {
+                                    0: { cellWidth: 80 },
+                                    1: { cellWidth: 40 }
+                                }
+                            });
+                            yPos = pdf.lastAutoTable.finalY + 5;
                         }
                         
-                        yPos += 2;
-                        
-                        // Schedules with detailed phase information
+                        // Schedules Table
                         if (sp.schedules && sp.schedules.length > 0) {
-                            addBullet(`Schedules: ${sp.schedules.length}`, 5);
-                            
                             sp.schedules.forEach((schedule, scheduleIdx) => {
-                                if (yPos > pageHeight - 80) {
+                                if (yPos > pageHeight - 60) {
                                     pdf.addPage();
                                     yPos = 20;
                                 }
                                 
+                                pdf.setFontSize(9);
                                 pdf.setFont(undefined, 'bold');
-                                addBullet(`Schedule ${scheduleIdx + 1}: ${schedule.name || 'Unnamed'}`, 10);
+                                pdf.text(`Schedule ${scheduleIdx + 1}: ${schedule.name || 'Unnamed'}`, margin, yPos);
+                                yPos += 4;
                                 pdf.setFont(undefined, 'normal');
                                 
-                                // Days of Week
-                                addBullet(`Days: ${schedule.daysOfWeek || 'Not specified'}`, 15);
+                                // Schedule Overview Table
+                                const scheduleOverview = [
+                                    ['Days', schedule.daysOfWeek || 'Not specified']
+                                ];
                                 
-                                // Ramp-Up Phase
-                                pdf.setFont(undefined, 'bold');
-                                addBullet(`Ramp-Up Phase:`, 15);
-                                pdf.setFont(undefined, 'normal');
-                                addBullet(`Start Time: ${schedule.rampUpStartTime}`, 20);
-                                addBullet(`Load Balancing: ${schedule.rampUpLoadBalancingAlgorithm || 'Not specified'}`, 20);
-                                if (schedule.rampUpMinimumHostsPct !== undefined) {
-                                    addBullet(`Minimum Hosts: ${schedule.rampUpMinimumHostsPct}%`, 20);
-                                }
-                                if (schedule.rampUpCapacityThresholdPct !== undefined) {
-                                    addBullet(`Capacity Threshold: ${schedule.rampUpCapacityThresholdPct}%`, 20);
-                                }
+                                pdf.autoTable({
+                                    startY: yPos,
+                                    body: scheduleOverview,
+                                    theme: 'plain',
+                                    bodyStyles: { fontSize: 8 },
+                                    margin: { left: margin + 5, right: margin },
+                                    columnStyles: {
+                                        0: { cellWidth: 30, fontStyle: 'bold' },
+                                        1: { cellWidth: 140 }
+                                    }
+                                });
+                                yPos = pdf.lastAutoTable.finalY + 3;
                                 
-                                // Peak Phase
-                                pdf.setFont(undefined, 'bold');
-                                addBullet(`Peak Phase:`, 15);
-                                pdf.setFont(undefined, 'normal');
-                                addBullet(`Start Time: ${schedule.peakStartTime}`, 20);
-                                addBullet(`Load Balancing: ${schedule.peakLoadBalancingAlgorithm || 'Not specified'}`, 20);
+                                // Phases Table
+                                const phasesData = [];
                                 
-                                // Ramp-Down Phase
-                                pdf.setFont(undefined, 'bold');
-                                addBullet(`Ramp-Down Phase:`, 15);
-                                pdf.setFont(undefined, 'normal');
-                                addBullet(`Start Time: ${schedule.rampDownStartTime}`, 20);
-                                addBullet(`Load Balancing: ${schedule.rampDownLoadBalancingAlgorithm || 'Not specified'}`, 20);
-                                if (schedule.rampDownMinimumHostsPct !== undefined) {
-                                    addBullet(`Minimum Hosts: ${schedule.rampDownMinimumHostsPct}%`, 20);
-                                }
-                                if (schedule.rampDownCapacityThresholdPct !== undefined) {
-                                    addBullet(`Capacity Threshold: ${schedule.rampDownCapacityThresholdPct}%`, 20);
-                                }
+                                // Ramp-Up
+                                phasesData.push([
+                                    'Ramp-Up',
+                                    schedule.rampUpStartTime || 'N/A',
+                                    schedule.rampUpLoadBalancingAlgorithm || 'N/A',
+                                    schedule.rampUpMinimumHostsPct !== undefined ? `${schedule.rampUpMinimumHostsPct}%` : 'N/A',
+                                    schedule.rampUpCapacityThresholdPct !== undefined ? `${schedule.rampUpCapacityThresholdPct}%` : 'N/A',
+                                    '-'
+                                ]);
+                                
+                                // Peak
+                                phasesData.push([
+                                    'Peak',
+                                    schedule.peakStartTime || 'N/A',
+                                    schedule.peakLoadBalancingAlgorithm || 'N/A',
+                                    '-',
+                                    '-',
+                                    '-'
+                                ]);
+                                
+                                // Ramp-Down
+                                const rampDownExtra = [];
                                 if (schedule.rampDownForceLogoffUser !== undefined) {
-                                    const forceLogoff = schedule.rampDownForceLogoffUser ? 'Yes' : 'No';
-                                    addBullet(`Force Logoff Users: ${forceLogoff}`, 20);
+                                    rampDownExtra.push(`Force Logoff: ${schedule.rampDownForceLogoffUser ? 'Yes' : 'No'}`);
                                 }
                                 if (schedule.rampDownWaitTimeMinute !== undefined) {
-                                    addBullet(`Wait Time: ${schedule.rampDownWaitTimeMinute} minutes`, 20);
-                                }
-                                if (schedule.rampDownNotificationMessage) {
-                                    addBullet(`Notification: "${schedule.rampDownNotificationMessage}"`, 20);
+                                    rampDownExtra.push(`Wait: ${schedule.rampDownWaitTimeMinute}m`);
                                 }
                                 
-                                // Off-Peak Phase
-                                pdf.setFont(undefined, 'bold');
-                                addBullet(`Off-Peak Phase:`, 15);
-                                pdf.setFont(undefined, 'normal');
-                                addBullet(`Start Time: ${schedule.offPeakStartTime}`, 20);
-                                addBullet(`Load Balancing: ${schedule.offPeakLoadBalancingAlgorithm || 'Not specified'}`, 20);
+                                phasesData.push([
+                                    'Ramp-Down',
+                                    schedule.rampDownStartTime || 'N/A',
+                                    schedule.rampDownLoadBalancingAlgorithm || 'N/A',
+                                    schedule.rampDownMinimumHostsPct !== undefined ? `${schedule.rampDownMinimumHostsPct}%` : 'N/A',
+                                    schedule.rampDownCapacityThresholdPct !== undefined ? `${schedule.rampDownCapacityThresholdPct}%` : 'N/A',
+                                    rampDownExtra.join(', ') || '-'
+                                ]);
                                 
-                                yPos += 2;
+                                // Off-Peak
+                                phasesData.push([
+                                    'Off-Peak',
+                                    schedule.offPeakStartTime || 'N/A',
+                                    schedule.offPeakLoadBalancingAlgorithm || 'N/A',
+                                    '-',
+                                    '-',
+                                    '-'
+                                ]);
+                                
+                                pdf.autoTable({
+                                    startY: yPos,
+                                    head: [['Phase', 'Start Time', 'Load Balancing', 'Min Hosts', 'Capacity %', 'Extra']],
+                                    body: phasesData,
+                                    theme: 'grid',
+                                    headStyles: { fillColor: [0, 120, 212], fontSize: 7 },
+                                    bodyStyles: { fontSize: 7 },
+                                    margin: { left: margin + 5, right: margin },
+                                    tableWidth: 'auto',
+                                    columnStyles: {
+                                        0: { cellWidth: 25, fontStyle: 'bold' },
+                                        1: { cellWidth: 22 },
+                                        2: { cellWidth: 35 },
+                                        3: { cellWidth: 22 },
+                                        4: { cellWidth: 22 },
+                                        5: { cellWidth: 44 }
+                                    }
+                                });
+                                yPos = pdf.lastAutoTable.finalY + 5;
                             });
                         } else {
-                            addBullet(`Schedules: 0 (not configured) [-]`, 5);
+                            pdf.setFontSize(8);
+                            pdf.text('No schedules configured', margin + 5, yPos);
+                            yPos += 5;
                         }
                         
-                        yPos += 3;
+                        yPos += 5;
                     });
                     yPos += 3;
                 }
