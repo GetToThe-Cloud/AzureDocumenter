@@ -1806,75 +1806,146 @@ async function exportToPDF() {
                 
                 addSubSection(`Subscription: ${sub.name}`);
                 
-                // Host Pools - Enhanced Details
+                // Host Pools - Table Format
                 if (sub.hostPools.length > 0) {
-                    addText('Host Pools:', 11, true);
+                    if (yPos > pageHeight - 30) {
+                        pdf.addPage();
+                        yPos = 20;
+                    }
                     
-                    sub.hostPools.forEach(hp => {
-                        if (yPos > pageHeight - 70) {
+                    addText('Host Pools:', 11, true);
+                    yPos += 3;
+                    
+                    // Main Host Pools Table
+                    const hostPoolTableData = sub.hostPools.map(hp => {
+                        const type = `${hp.hostPoolType}`;
+                        const loadBalancing = hp.loadBalancerType;
+                        const hosts = `${hp.sessionHostCount} (${hp.availableHosts}A/${hp.unavailableHosts}U)`;
+                        const sessions = hp.totalUserSessions > 0 ? `${hp.totalUserSessions} (${hp.activeUserSessions}A/${hp.disconnectedUserSessions}D)` : '0';
+                        const avgSessions = hp.sessionHostCount > 0 && hp.totalUserSessions > 0 ? (hp.totalUserSessions / hp.sessionHostCount).toFixed(1) : '0';
+                        const validation = hp.validationEnvironment ? 'Yes' : 'No';
+                        const scalingPlan = hp.scalingPlanReference ? 'Yes' : 'No';
+                        
+                        return [
+                            hp.name.length > 35 ? hp.name.substring(0, 32) + '...' : hp.name,
+                            type,
+                            loadBalancing,
+                            hosts,
+                            sessions,
+                            avgSessions,
+                            validation,
+                            scalingPlan
+                        ];
+                    });
+                    
+                    pdf.autoTable({
+                        startY: yPos,
+                        head: [['Host Pool', 'Type', 'Load Bal', 'Hosts', 'Sessions', 'Avg/Host', 'Val Env', 'Scaling']],
+                        body: hostPoolTableData,
+                        theme: 'grid',
+                        headStyles: { fillColor: [0, 120, 212], fontSize: 7, fontStyle: 'bold' },
+                        bodyStyles: { fontSize: 6.5 },
+                        margin: { left: margin, right: margin },
+                        columnStyles: {
+                            0: { cellWidth: 50 },
+                            1: { cellWidth: 20, halign: 'center' },
+                            2: { cellWidth: 24, halign: 'center' },
+                            3: { cellWidth: 22, halign: 'center' },
+                            4: { cellWidth: 22, halign: 'center' },
+                            5: { cellWidth: 16, halign: 'center' },
+                            6: { cellWidth: 16, halign: 'center' },
+                            7: { cellWidth: 18, halign: 'center' }
+                        },
+                        didParseCell: function(data) {
+                            // Highlight validation environment column
+                            if (data.column.index === 6 && data.section === 'body') {
+                                if (data.cell.raw === 'Yes') {
+                                    data.cell.styles.textColor = [16, 124, 16];
+                                    data.cell.styles.fontStyle = 'bold';
+                                }
+                            }
+                            // Highlight scaling plan column
+                            if (data.column.index === 7 && data.section === 'body') {
+                                if (data.cell.raw === 'Yes') {
+                                    data.cell.styles.textColor = [16, 124, 16];
+                                    data.cell.styles.fontStyle = 'bold';
+                                } else {
+                                    data.cell.styles.textColor = [220, 53, 69];
+                                }
+                            }
+                        }
+                    });
+                    yPos = pdf.lastAutoTable.finalY + 5;
+                    
+                    // Additional Host Pool Details (optional)
+                    const poolsWithDetails = sub.hostPools.filter(hp => 
+                        hp.friendlyName || hp.maxSessionLimit || hp.registrationToken
+                    );
+                    
+                    if (poolsWithDetails.length > 0) {
+                        if (yPos > pageHeight - 30) {
                             pdf.addPage();
                             yPos = 20;
                         }
                         
-                        // Host Pool Name
+                        pdf.setFontSize(9);
                         pdf.setFont(undefined, 'bold');
-                        addBullet(`${hp.name}`, 0);
+                        pdf.text('Additional Host Pool Details:', margin, yPos);
+                        yPos += 5;
                         pdf.setFont(undefined, 'normal');
                         
-                        // Basic Configuration
-                        if (hp.friendlyName) {
-                            addBullet(`Friendly Name: ${hp.friendlyName}`, 5);
-                        }
-                        addBullet(`Type: ${hp.hostPoolType} | Load Balancing: ${hp.loadBalancerType}`, 5);
-                        addBullet(`Location: ${hp.location} | Resource Group: ${hp.resourceGroup}`, 5);
-                        addBullet(`Max Session Limit: ${hp.maxSessionLimit || 'Not configured'}`, 5);
-                        
-                        // Validation Environment
-                        if (hp.validationEnvironment !== undefined) {
-                            const valEnv = hp.validationEnvironment ? 'Yes [+]' : 'No';
-                            addBullet(`Validation Environment: ${valEnv}`, 5);
-                        }
-                        
-                        // Preferred App Group Type
-                        if (hp.preferredAppGroupType) {
-                            addBullet(`Preferred App Group Type: ${hp.preferredAppGroupType}`, 5);
-                        }
-                        
-                        // Session Host Statistics
-                        addBullet(`Session Hosts: ${hp.sessionHostCount} total (${hp.availableHosts} available, ${hp.unavailableHosts} unavailable)`, 5);
-                        
-                        // User Session Statistics
-                        if (hp.totalUserSessions > 0) {
-                            addBullet(`User Sessions: ${hp.totalUserSessions} total (${hp.activeUserSessions} active, ${hp.disconnectedUserSessions} disconnected)`, 5);
-                            if (hp.sessionHostCount > 0) {
-                                const avgSessions = (hp.totalUserSessions / hp.sessionHostCount).toFixed(1);
-                                addBullet(`Average Sessions per Host: ${avgSessions}`, 5);
+                        poolsWithDetails.forEach(hp => {
+                            if (yPos > pageHeight - 30) {
+                                pdf.addPage();
+                                yPos = 20;
                             }
-                        } else {
-                            addBullet(`User Sessions: 0 (no active users)`, 5);
-                        }
-                        
-                        // Registration Token Details
-                        if (hp.registrationToken) {
-                            const tokenStatus = hp.registrationToken.expired ? 'Expired [!]' : 'Valid [+]';
-                            addBullet(`Registration Token: ${tokenStatus}`, 5);
-                            if (hp.registrationToken.expiryTime) {
-                                const expiryDate = new Date(hp.registrationToken.expiryTime);
-                                addBullet(`Token Expiry: ${expiryDate.toLocaleString()}`, 10);
+                            
+                            const detailsData = [];
+                            
+                            if (hp.friendlyName) {
+                                detailsData.push(['Friendly Name', hp.friendlyName]);
                             }
-                        } else {
-                            addBullet(`Registration Token: Not configured`, 5);
-                        }
-                        
-                        // Scaling Plan Assignment
-                        if (hp.scalingPlanReference) {
-                            addBullet(`Scaling Plan: ${hp.scalingPlanReference} [+]`, 5);
-                        } else {
-                            addBullet(`Scaling Plan: None assigned [-]`, 5);
-                        }
-                        
-                        yPos += 3;
-                    });
+                            if (hp.maxSessionLimit) {
+                                detailsData.push(['Max Session Limit', hp.maxSessionLimit.toString()]);
+                            }
+                            if (hp.preferredAppGroupType) {
+                                detailsData.push(['Preferred App Group Type', hp.preferredAppGroupType]);
+                            }
+                            if (hp.registrationToken) {
+                                const tokenStatus = hp.registrationToken.expired ? 'Expired' : 'Valid';
+                                detailsData.push(['Registration Token', tokenStatus]);
+                                if (hp.registrationToken.expiryTime) {
+                                    const expiryDate = new Date(hp.registrationToken.expiryTime);
+                                    detailsData.push(['Token Expiry', expiryDate.toLocaleString()]);
+                                }
+                            }
+                            if (hp.scalingPlanReference) {
+                                detailsData.push(['Scaling Plan', hp.scalingPlanReference]);
+                            }
+                            
+                            if (detailsData.length > 0) {
+                                pdf.setFontSize(8);
+                                pdf.setFont(undefined, 'bold');
+                                pdf.text(hp.name, margin + 2, yPos);
+                                yPos += 4;
+                                pdf.setFont(undefined, 'normal');
+                                
+                                pdf.autoTable({
+                                    startY: yPos,
+                                    body: detailsData,
+                                    theme: 'plain',
+                                    bodyStyles: { fontSize: 7 },
+                                    margin: { left: margin + 5, right: margin },
+                                    columnStyles: {
+                                        0: { cellWidth: 45, fontStyle: 'bold' },
+                                        1: { cellWidth: 110 }
+                                    }
+                                });
+                                yPos = pdf.lastAutoTable.finalY + 4;
+                            }
+                        });
+                    }
+                    
                     yPos += 3;
                 }
                 
@@ -1947,51 +2018,116 @@ async function exportToPDF() {
                     }
                 }
                 
-                // Workspaces - Enhanced Details
+                // Workspaces - Table Format
                 if (sub.workspaces.length > 0) {
                     if (yPos > pageHeight - 30) {
                         pdf.addPage();
                         yPos = 20;
                     }
-                    addText('Workspaces:', 11, true);
                     
-                    sub.workspaces.forEach(ws => {
-                        if (yPos > pageHeight - 40) {
+                    addText('Workspaces:', 11, true);
+                    yPos += 3;
+                    
+                    // Main Workspaces Table
+                    const workspaceTableData = sub.workspaces.map(ws => {
+                        const appGroupCount = ws.applicationGroupReferences && ws.applicationGroupReferences.length > 0 
+                            ? ws.applicationGroupReferences.length.toString() 
+                            : '0';
+                        const friendlyName = ws.friendlyName || '-';
+                        
+                        return [
+                            ws.name.length > 45 ? ws.name.substring(0, 42) + '...' : ws.name,
+                            friendlyName.length > 40 ? friendlyName.substring(0, 37) + '...' : friendlyName,
+                            ws.location,
+                            appGroupCount,
+                            ws.resourceGroup.length > 30 ? ws.resourceGroup.substring(0, 27) + '...' : ws.resourceGroup
+                        ];
+                    });
+                    
+                    pdf.autoTable({
+                        startY: yPos,
+                        head: [['Workspace Name', 'Friendly Name', 'Location', 'App Groups', 'Resource Group']],
+                        body: workspaceTableData,
+                        theme: 'grid',
+                        headStyles: { fillColor: [0, 120, 212], fontSize: 8, fontStyle: 'bold' },
+                        bodyStyles: { fontSize: 7 },
+                        margin: { left: margin, right: margin },
+                        columnStyles: {
+                            0: { cellWidth: 55 },
+                            1: { cellWidth: 45 },
+                            2: { cellWidth: 26 },
+                            3: { cellWidth: 20, halign: 'center' },
+                            4: { cellWidth: 42 }
+                        },
+                        didParseCell: function(data) {
+                            // Highlight app group count
+                            if (data.column.index === 3 && data.section === 'body') {
+                                const count = parseInt(data.cell.raw);
+                                if (count === 0) {
+                                    data.cell.styles.textColor = [220, 53, 69];
+                                } else {
+                                    data.cell.styles.textColor = [16, 124, 16];
+                                    data.cell.styles.fontStyle = 'bold';
+                                }
+                            }
+                            // Gray out dashes
+                            if (data.section === 'body' && data.cell.raw === '-') {
+                                data.cell.styles.textColor = [150, 150, 150];
+                            }
+                        }
+                    });
+                    yPos = pdf.lastAutoTable.finalY + 5;
+                    
+                    // Workspace to Application Group Mapping (if any workspace has app groups)
+                    const workspacesWithAppGroups = sub.workspaces.filter(ws => 
+                        ws.applicationGroupReferences && ws.applicationGroupReferences.length > 0
+                    );
+                    
+                    if (workspacesWithAppGroups.length > 0) {
+                        if (yPos > pageHeight - 30) {
                             pdf.addPage();
                             yPos = 20;
                         }
                         
-                        // Workspace Name
+                        pdf.setFontSize(9);
                         pdf.setFont(undefined, 'bold');
-                        addBullet(`${ws.name}`, 0);
+                        pdf.text('Workspace Application Group Assignments:', margin, yPos);
+                        yPos += 5;
                         pdf.setFont(undefined, 'normal');
                         
-                        // Friendly Name and Description
-                        if (ws.friendlyName) {
-                            addBullet(`Friendly Name: ${ws.friendlyName}`, 5);
-                        }
-                        if (ws.description) {
-                            addBullet(`Description: ${ws.description}`, 5);
-                        }
-                        
-                        // Basic Information
-                        addBullet(`Location: ${ws.location} | Resource Group: ${ws.resourceGroup}`, 5);
-                        
-                        // Connected Application Groups
-                        if (ws.applicationGroupReferences && ws.applicationGroupReferences.length > 0) {
-                            addBullet(`Connected Application Groups: ${ws.applicationGroupReferences.length}`, 5);
+                        workspacesWithAppGroups.forEach(ws => {
+                            if (yPos > pageHeight - 30) {
+                                pdf.addPage();
+                                yPos = 20;
+                            }
                             
-                            // List application group names
-                            ws.applicationGroupReferences.forEach(agRef => {
+                            pdf.setFontSize(8);
+                            pdf.setFont(undefined, 'bold');
+                            pdf.text(ws.name, margin + 2, yPos);
+                            yPos += 4;
+                            pdf.setFont(undefined, 'normal');
+                            
+                            const agTableData = ws.applicationGroupReferences.map(agRef => {
                                 const agName = agRef.split('/').pop();
-                                addBullet(`- ${agName}`, 10);
+                                return [agName];
                             });
-                        } else {
-                            addBullet(`Connected Application Groups: 0 [-]`, 5);
-                        }
-                        
-                        yPos += 2;
-                    });
+                            
+                            pdf.autoTable({
+                                startY: yPos,
+                                head: [['Application Group']],
+                                body: agTableData,
+                                theme: 'striped',
+                                headStyles: { fillColor: [41, 128, 185], fontSize: 7 },
+                                bodyStyles: { fontSize: 7 },
+                                margin: { left: margin + 5, right: margin },
+                                columnStyles: {
+                                    0: { cellWidth: 160 }
+                                }
+                            });
+                            yPos = pdf.lastAutoTable.finalY + 4;
+                        });
+                    }
+                    
                     yPos += 3;
                 }
                 
