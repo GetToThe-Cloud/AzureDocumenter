@@ -868,6 +868,12 @@ async function loadDiagram() {
         const response = await fetch('/api/diagram/connections');
         
         if (response.status === 401) {
+            console.log('Not authenticated for diagram. Skipping diagram load.');
+            // Hide diagram section if authentication is required
+            const diagramSection = document.getElementById('networkDiagram');
+            if (diagramSection && diagramSection.parentElement) {
+                diagramSection.parentElement.style.display = 'none';
+            }
             return;
         }
         
@@ -875,12 +881,20 @@ async function loadDiagram() {
         
         if (diagramData.error) {
             console.error('Error loading diagram:', diagramData.error);
+            const diagramSection = document.getElementById('networkDiagram');
+            if (diagramSection) {
+                diagramSection.innerHTML = `<div style="padding: 20px; text-align: center; color: #dc3545;">Error loading diagram: ${diagramData.error}</div>`;
+            }
             return;
         }
         
         renderDiagram();
     } catch (error) {
         console.error('Error loading diagram:', error);
+        const diagramSection = document.getElementById('networkDiagram');
+        if (diagramSection) {
+            diagramSection.innerHTML = `<div style="padding: 20px; text-align: center; color: #dc3545;">Failed to load diagram. Please check server connection.</div>`;
+        }
     } finally {
         hideLoading();
     }
@@ -1512,17 +1526,34 @@ async function exportToPDF() {
         // Function to capture architecture diagram
         async function captureArchitectureDiagram() {
             const diagramContainer = document.getElementById('networkDiagram');
-            if (!diagramContainer || !diagramContainer.querySelector('canvas')) {
+            if (!diagramContainer) {
+                console.log('Diagram container not found');
+                return null;
+            }
+            
+            // Check if diagram is hidden or has no content
+            const canvas = diagramContainer.querySelector('canvas');
+            if (!canvas) {
+                console.log('Diagram canvas not found - diagram may not be loaded');
+                return null;
+            }
+            
+            // Check if container is visible
+            const style = window.getComputedStyle(diagramContainer);
+            if (style.display === 'none' || style.visibility === 'hidden') {
+                console.log('Diagram is hidden, skipping capture');
                 return null;
             }
             
             try {
-                const canvas = await html2canvas(diagramContainer, {
+                const capturedCanvas = await html2canvas(diagramContainer, {
                     backgroundColor: '#ffffff',
                     scale: 2,
-                    logging: false
+                    logging: false,
+                    useCORS: true
                 });
-                return canvas.toDataURL('image/png');
+                console.log('Diagram captured successfully');
+                return capturedCanvas.toDataURL('image/png');
             } catch (error) {
                 console.error('Error capturing diagram:', error);
                 return null;
@@ -2007,7 +2038,7 @@ async function exportToPDF() {
                         },
                         didParseCell: function(data) {
                             // Highlight Not assigned values
-                            if (data.section === 'body' && data.cell.raw.includes('Not assigned')) {
+                            if (data.section === 'body' && typeof data.cell.raw === 'string' && data.cell.raw.includes('Not assigned')) {
                                 data.cell.styles.textColor = [220, 53, 69];
                             }
                             // Highlight N/A
