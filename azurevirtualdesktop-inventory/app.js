@@ -2577,7 +2577,167 @@ async function exportToPDF() {
                     pdf.setTextColor(0, 0, 0);
                     yPos += 5;
                     
-                    sub.computeGalleries.forEach(gallery => {\n                        if (yPos > pageHeight - 40) {\n                            pdf.addPage();\n                            yPos = 20;\n                        }\n                        \n                        // Gallery Header\n                        pdf.setFont(undefined, 'bold');\n                        pdf.setFontSize(10);\n                        pdf.text(gallery.name, margin, yPos);\n                        yPos += 4;\n                        pdf.setFont(undefined, 'normal');\n                        pdf.setFontSize(8);\n                        \n                        // Gallery basic info\n                        const galleryBasicData = [\n                            ['Location', gallery.location],\n                            ['Resource Group', gallery.resourceGroup]\n                        ];\n                        if (gallery.description) {\n                            galleryBasicData.push(['Description', gallery.description]);\n                        }\n                        \n                        pdf.autoTable({\n                            startY: yPos,\n                            body: galleryBasicData,\n                            theme: 'plain',\n                            bodyStyles: { fontSize: 7 },\n                            margin: { left: margin + 3, right: margin },\n                            columnStyles: {\n                                0: { cellWidth: 40, fontStyle: 'bold' },\n                                1: { cellWidth: 140 }\n                            }\n                        });\n                        yPos = pdf.lastAutoTable.finalY + 5;\n                        \n                        // Image Definitions Table\n                        if (gallery.images && gallery.images.length > 0) {\n                            if (yPos > pageHeight - 30) {\n                                pdf.addPage();\n                                yPos = 20;\n                            }\n                            \n                            pdf.setFontSize(9);\n                            pdf.setFont(undefined, 'bold');\n                            pdf.text('Image Definitions:', margin + 3, yPos);\n                            yPos += 4;\n                            pdf.setFont(undefined, 'normal');\n                            \n                            const imageTableData = gallery.images.map(img => {\n                                const versionCount = img.versions ? img.versions.length : 0;\n                                const usage = img.usedBySessionHosts > 0 ? `${img.usedBySessionHosts}` : '0';\n                                const identifier = `${img.publisher}/${img.offer}/${img.sku}`;\n                                \n                                return [\n                                    img.name.length > 30 ? img.name.substring(0, 27) + '...' : img.name,\n                                    img.osType,\n                                    img.osState,\n                                    versionCount.toString(),\n                                    usage,\n                                    identifier.length > 40 ? identifier.substring(0, 37) + '...' : identifier\n                                ];\n                            });\n                            \n                            pdf.autoTable({\n                                startY: yPos,\n                                head: [['Image Name', 'OS Type', 'OS State', 'Versions', 'In Use', 'Identifier']],\n                                body: imageTableData,\n                                theme: 'grid',\n                                headStyles: { fillColor: [52, 152, 219], fontSize: 7, fontStyle: 'bold' },\n                                bodyStyles: { fontSize: 6.5 },\n                                margin: { left: margin + 5, right: margin },\n                                columnStyles: {\n                                    0: { cellWidth: 40 },\n                                    1: { cellWidth: 20, halign: 'center' },\n                                    2: { cellWidth: 20, halign: 'center' },\n                                    3: { cellWidth: 18, halign: 'center' },\n                                    4: { cellWidth: 16, halign: 'center' },\n                                    5: { cellWidth: 60 }\n                                },\n                                didParseCell: function(data) {\n                                    // Highlight usage column\n                                    if (data.column.index === 4 && data.section === 'body') {\n                                        const usage = parseInt(data.cell.raw);\n                                        if (usage > 0) {\n                                            data.cell.styles.textColor = [16, 124, 16];\n                                            data.cell.styles.fontStyle = 'bold';\n                                        } else {\n                                            data.cell.styles.textColor = [150, 150, 150];\n                                        }\n                                    }\n                                }\n                            });\n                            yPos = pdf.lastAutoTable.finalY + 5;\n                            \n                            // Image Versions Details (for images with versions)\n                            const imagesWithVersions = gallery.images.filter(img => img.versions && img.versions.length > 0);\n                            if (imagesWithVersions.length > 0) {\n                                if (yPos > pageHeight - 30) {\n                                    pdf.addPage();\n                                    yPos = 20;\n                                }\n                                \n                                pdf.setFontSize(9);\n                                pdf.setFont(undefined, 'bold');\n                                pdf.text('Image Versions:', margin + 3, yPos);\n                                yPos += 4;\n                                pdf.setFont(undefined, 'normal');\n                                \n                                imagesWithVersions.forEach(img => {\n                                    if (yPos > pageHeight - 30) {\n                                        pdf.addPage();\n                                        yPos = 20;\n                                    }\n                                    \n                                    pdf.setFontSize(8);\n                                    pdf.setFont(undefined, 'bold');\n                                    pdf.text(`${img.name}:`, margin + 5, yPos);\n                                    yPos += 4;\n                                    pdf.setFont(undefined, 'normal');\n                                    \n                                    const versionTableData = img.versions.map(ver => {\n                                        const pubDate = ver.publishingDate !== 'N/A' ? new Date(ver.publishingDate).toLocaleDateString() : 'N/A';\n                                        const replicas = ver.replicaCount ? ver.replicaCount.toString() : 'Default';\n                                        \n                                        return [\n                                            ver.name,\n                                            pubDate,\n                                            replicas\n                                        ];\n                                    });\n                                    \n                                    pdf.autoTable({\n                                        startY: yPos,\n                                        head: [['Version', 'Published Date', 'Replica Count']],\n                                        body: versionTableData,\n                                        theme: 'striped',\n                                        headStyles: { fillColor: [149, 165, 166], fontSize: 7 },\n                                        bodyStyles: { fontSize: 7 },\n                                        margin: { left: margin + 8, right: margin },\n                                        columnStyles: {\n                                            0: { cellWidth: 30 },\n                                            1: { cellWidth: 40 },\n                                            2: { cellWidth: 30, halign: 'center' }\n                                        }\n                                    });\n                                    yPos = pdf.lastAutoTable.finalY + 3;\n                                });\n                            }\n                        } else {\n                            pdf.setFontSize(8);\n                            pdf.setTextColor(150, 150, 150);\n                            pdf.text('No images defined in this gallery.', margin + 5, yPos);\n                            pdf.setTextColor(0, 0, 0);\n                            yPos += 3;\n                        }\n                        \n                        yPos += 3;\n                    });\n                    yPos += 3;\n                }
+                    sub.computeGalleries.forEach(gallery => {
+                        if (yPos > pageHeight - 40) {
+                            pdf.addPage();
+                            yPos = 20;
+                        }
+                        
+                        // Gallery Header
+                        pdf.setFont(undefined, 'bold');
+                        pdf.setFontSize(10);
+                        pdf.text(gallery.name, margin, yPos);
+                        yPos += 4;
+                        pdf.setFont(undefined, 'normal');
+                        pdf.setFontSize(8);
+                        
+                        // Gallery basic info
+                        const galleryBasicData = [
+                            ['Location', gallery.location],
+                            ['Resource Group', gallery.resourceGroup]
+                        ];
+                        if (gallery.description) {
+                            galleryBasicData.push(['Description', gallery.description]);
+                        }
+                        
+                        pdf.autoTable({
+                            startY: yPos,
+                            body: galleryBasicData,
+                            theme: 'plain',
+                            bodyStyles: { fontSize: 7 },
+                            margin: { left: margin + 3, right: margin },
+                            columnStyles: {
+                                0: { cellWidth: 40, fontStyle: 'bold' },
+                                1: { cellWidth: 140 }
+                            }
+                        });
+                        yPos = pdf.lastAutoTable.finalY + 5;
+                        
+                        // Image Definitions Table
+                        if (gallery.images && gallery.images.length > 0) {
+                            if (yPos > pageHeight - 30) {
+                                pdf.addPage();
+                                yPos = 20;
+                            }
+                            
+                            pdf.setFontSize(9);
+                            pdf.setFont(undefined, 'bold');
+                            pdf.text('Image Definitions:', margin + 3, yPos);
+                            yPos += 4;
+                            pdf.setFont(undefined, 'normal');
+                            
+                            const imageTableData = gallery.images.map(img => {
+                                const versionCount = img.versions ? img.versions.length : 0;
+                                const usage = img.usedBySessionHosts > 0 ? `${img.usedBySessionHosts}` : '0';
+                                const identifier = `${img.publisher}/${img.offer}/${img.sku}`;
+                                
+                                return [
+                                    img.name.length > 30 ? img.name.substring(0, 27) + '...' : img.name,
+                                    img.osType,
+                                    img.osState,
+                                    versionCount.toString(),
+                                    usage,
+                                    identifier.length > 40 ? identifier.substring(0, 37) + '...' : identifier
+                                ];
+                            });
+                            
+                            pdf.autoTable({
+                                startY: yPos,
+                                head: [['Image Name', 'OS Type', 'OS State', 'Versions', 'In Use', 'Identifier']],
+                                body: imageTableData,
+                                theme: 'grid',
+                                headStyles: { fillColor: [52, 152, 219], fontSize: 7, fontStyle: 'bold' },
+                                bodyStyles: { fontSize: 6.5 },
+                                margin: { left: margin + 5, right: margin },
+                                columnStyles: {
+                                    0: { cellWidth: 40 },
+                                    1: { cellWidth: 20, halign: 'center' },
+                                    2: { cellWidth: 20, halign: 'center' },
+                                    3: { cellWidth: 18, halign: 'center' },
+                                    4: { cellWidth: 16, halign: 'center' },
+                                    5: { cellWidth: 60 }
+                                },
+                                didParseCell: function(data) {
+                                    // Highlight usage column
+                                    if (data.column.index === 4 && data.section === 'body') {
+                                        const usage = parseInt(data.cell.raw);
+                                        if (usage > 0) {
+                                            data.cell.styles.textColor = [16, 124, 16];
+                                            data.cell.styles.fontStyle = 'bold';
+                                        } else {
+                                            data.cell.styles.textColor = [150, 150, 150];
+                                        }
+                                    }
+                                }
+                            });
+                            yPos = pdf.lastAutoTable.finalY + 5;
+                            
+                            // Image Versions Details (for images with versions)
+                            const imagesWithVersions = gallery.images.filter(img => img.versions && img.versions.length > 0);
+                            if (imagesWithVersions.length > 0) {
+                                if (yPos > pageHeight - 30) {
+                                    pdf.addPage();
+                                    yPos = 20;
+                                }
+                                
+                                pdf.setFontSize(9);
+                                pdf.setFont(undefined, 'bold');
+                                pdf.text('Image Versions:', margin + 3, yPos);
+                                yPos += 4;
+                                pdf.setFont(undefined, 'normal');
+                                
+                                imagesWithVersions.forEach(img => {
+                                    if (yPos > pageHeight - 30) {
+                                        pdf.addPage();
+                                        yPos = 20;
+                                    }
+                                    
+                                    pdf.setFontSize(8);
+                                    pdf.setFont(undefined, 'bold');
+                                    pdf.text(`${img.name}:`, margin + 5, yPos);
+                                    yPos += 4;
+                                    pdf.setFont(undefined, 'normal');
+                                    
+                                    const versionTableData = img.versions.map(ver => {
+                                        const pubDate = ver.publishingDate !== 'N/A' ? new Date(ver.publishingDate).toLocaleDateString() : 'N/A';
+                                        const replicas = ver.replicaCount ? ver.replicaCount.toString() : 'Default';
+                                        
+                                        return [
+                                            ver.name,
+                                            pubDate,
+                                            replicas
+                                        ];
+                                    });
+                                    
+                                    pdf.autoTable({
+                                        startY: yPos,
+                                        head: [['Version', 'Published Date', 'Replica Count']],
+                                        body: versionTableData,
+                                        theme: 'striped',
+                                        headStyles: { fillColor: [149, 165, 166], fontSize: 7 },
+                                        bodyStyles: { fontSize: 7 },
+                                        margin: { left: margin + 8, right: margin },
+                                        columnStyles: {
+                                            0: { cellWidth: 30 },
+                                            1: { cellWidth: 40 },
+                                            2: { cellWidth: 30, halign: 'center' }
+                                        }
+                                    });
+                                    yPos = pdf.lastAutoTable.finalY + 3;
+                                });
+                            }
+                        } else {
+                            pdf.setFontSize(8);
+                            pdf.setTextColor(150, 150, 150);
+                            pdf.text('No images defined in this gallery.', margin + 5, yPos);
+                            pdf.setTextColor(0, 0, 0);
+                            yPos += 3;
+                        }
+                        
+                        yPos += 3;
+                    });
+                    yPos += 3;
+                }
                 
                 yPos += 5;
             });
