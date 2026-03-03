@@ -131,24 +131,29 @@ async function loadInventoryData() {
         updateLastUpdateTime();
         
         // Render explanations
-        if (inventoryData.explanation) {
-            document.getElementById('overviewExplanation').textContent = inventoryData.explanation.overview || '';
-            document.getElementById('hostPoolsExplanation').textContent = inventoryData.explanation.hostPools || '';
-            document.getElementById('sessionHostsExplanation').textContent = inventoryData.explanation.sessionHosts || '';
-            document.getElementById('scalingPlansExplanation').textContent = inventoryData.explanation.scalingPlans || '';
-            document.getElementById('vnetsExplanation').textContent = inventoryData.explanation.virtualNetworks || '';
-            document.getElementById('galleriesExplanation').textContent = inventoryData.explanation.computeGalleries || '';
+        try {
+            if (inventoryData.explanation) {
+                const expl = inventoryData.explanation;
+                if (expl.overview) document.getElementById('overviewExplanation').textContent = expl.overview;
+                if (expl.hostPools) document.getElementById('hostPoolsExplanation').textContent = expl.hostPools;
+                if (expl.sessionHosts) document.getElementById('sessionHostsExplanation').textContent = expl.sessionHosts;
+                if (expl.scalingPlans) document.getElementById('scalingPlansExplanation').textContent = expl.scalingPlans;
+                if (expl.virtualNetworks) document.getElementById('vnetsExplanation').textContent = expl.virtualNetworks;
+                if (expl.computeGalleries) document.getElementById('galleriesExplanation').textContent = expl.computeGalleries;
+            }
+        } catch (explError) {
+            console.warn('⚠️ Error setting explanations:', explError);
         }
         
         console.log('🎨 Rendering UI components...');
-        renderOverview();
-        renderHostPools();
-        renderSessionHosts();
-        renderWorkspaces();
-        renderApplicationGroups();
-        renderScalingPlans();
-        renderVNets();
-        renderComputeGalleries();
+        try { renderOverview(); } catch (e) { console.error('❌ Error rendering overview:', e); }
+        try { renderHostPools(); } catch (e) { console.error('❌ Error rendering host pools:', e); }
+        try { renderSessionHosts(); } catch (e) { console.error('❌ Error rendering session hosts:', e); }
+        try { renderWorkspaces(); } catch (e) { console.error('❌ Error rendering workspaces:', e); }
+        try { renderApplicationGroups(); } catch (e) { console.error('❌ Error rendering application groups:', e); }
+        try { renderScalingPlans(); } catch (e) { console.error('❌ Error rendering scaling plans:', e); }
+        try { renderVNets(); } catch (e) { console.error('❌ Error rendering VNets:', e); }
+        try { renderComputeGalleries(); } catch (e) { console.error('❌ Error rendering compute galleries:', e); }
         
         updateLoadingProgress('Complete!', 100);
         console.log('✅ Inventory dashboard loaded successfully');
@@ -384,15 +389,15 @@ function renderSessionHosts() {
                     shCount++;
                     const statusBadge = sh.status === 'Available' ? 'badge-success' : 'badge-danger';
                     const lastHB = sh.lastHeartBeat ? new Date(sh.lastHeartBeat).toLocaleString() : 'N/A';
-                    const vnetInfo = sh.network ? `${sh.network.vnetName}/${sh.network.subnetName}` : 'N/A';
-                    const privateIP = sh.network ? sh.network.privateIP : 'N/A';
+                    const vnetInfo = sh.network ? `${sh.network.vnetName || 'N/A'}/${sh.network.subnetName || 'N/A'}` : 'N/A';
+                    const privateIP = sh.network?.privateIP || 'N/A';
                     
                     let imageSource = 'N/A';
                     if (sh.image) {
                         if (sh.image.type === 'Gallery') {
-                            imageSource = `🖼️ ${sh.image.imageName} (v${sh.image.version})`;
+                            imageSource = `🖼️ ${sh.image.imageName || 'Unknown'} (v${sh.image.version || '?'})`;
                         } else if (sh.image.type === 'Marketplace') {
-                            imageSource = `🏪 ${sh.image.publisher}/${sh.image.offer}`;
+                            imageSource = `🏪 ${sh.image.publisher || 'Unknown'}/${sh.image.offer || 'Unknown'}`;
                         }
                     }
                     
@@ -781,11 +786,16 @@ function renderComputeGalleries() {
     if (!inventoryData) return;
     
     const container = document.getElementById('galleriesList');
+    if (!container) {
+        console.error('❌ galleriesList container not found');
+        return;
+    }
     container.innerHTML = '';
     
     let galleryCount = 0;
-    inventoryData.subscriptions.forEach(sub => {
-        if (sub.computeGalleries) {
+    const subscriptions = inventoryData.subscriptions || [];
+    subscriptions.forEach(sub => {
+        if (sub.computeGalleries && Array.isArray(sub.computeGalleries)) {
             sub.computeGalleries.forEach(gallery => {
                 galleryCount++;
                 const galleryDiv = document.createElement('div');
@@ -813,10 +823,10 @@ function renderComputeGalleries() {
                                                 <tbody>
                                                     ${image.versions.map(version => `
                                                         <tr>
-                                                            <td><strong>${version.name}</strong></td>
-                                                            <td>${version.location}</td>
-                                                            <td><span class="badge ${version.provisioningState === 'Succeeded' ? 'badge-success' : 'badge-warning'}">${version.provisioningState}</span></td>
-                                                            <td>${version.usedBy ? version.usedBy.join(', ') : 'Not in use'}</td>
+                                                            <td><strong>${version.name || 'N/A'}</strong></td>
+                                                            <td>${version.location || 'N/A'}</td>
+                                                            <td><span class="badge ${version.provisioningState === 'Succeeded' ? 'badge-success' : 'badge-warning'}">${version.provisioningState || 'Unknown'}</span></td>
+                                                            <td>${version.usedBy && version.usedBy.length > 0 ? version.usedBy.join(', ') : 'Not in use'}</td>
                                                         </tr>
                                                     `).join('')}
                                                 </tbody>

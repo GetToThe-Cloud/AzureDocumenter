@@ -453,6 +453,7 @@ function Get-AVDInventoryData {
                     name = $gallery.Name
                     resourceGroup = $gallery.ResourceGroupName
                     location = $gallery.Location
+                    provisioningState = $gallery.ProvisioningState
                     description = $gallery.Description
                     images = @()
                 }
@@ -465,6 +466,8 @@ function Get-AVDInventoryData {
                             name = $image.Name
                             osType = $image.OsType
                             osState = $image.OsState
+                            hyperVGeneration = $image.HyperVGeneration
+                            description = $image.Description
                             publisher = $image.Identifier.Publisher
                             offer = $image.Identifier.Offer
                             sku = $image.Identifier.Sku
@@ -476,11 +479,27 @@ function Get-AVDInventoryData {
                         try {
                             $versions = Get-AzGalleryImageVersion -ResourceGroupName $gallery.ResourceGroupName -GalleryName $gallery.Name -GalleryImageDefinitionName $image.Name -ErrorAction SilentlyContinue
                             foreach ($version in $versions) {
-                                $imageData.versions += @{
+                                $versionData = @{
                                     name = $version.Name
+                                    location = $version.Location
+                                    provisioningState = $version.ProvisioningState
                                     publishingDate = if ($version.PublishingProfile.PublishedDate) { $version.PublishingProfile.PublishedDate.ToString('o') } else { 'N/A' }
                                     replicaCount = $version.PublishingProfile.ReplicaCount
+                                    usedBy = @()
                                 }
+                                
+                                # Find session hosts using this version
+                                foreach ($hp in $subData.hostPools) {
+                                    foreach ($sh in $hp.sessionHosts) {
+                                        if ($sh.image -and $sh.image.type -eq 'Gallery' -and 
+                                            $sh.image.imageName -eq $image.Name -and 
+                                            $sh.image.version -eq $version.Name) {
+                                            $versionData.usedBy += $sh.name
+                                        }
+                                    }
+                                }
+                                
+                                $imageData.versions += $versionData
                             }
                         }
                         catch {
