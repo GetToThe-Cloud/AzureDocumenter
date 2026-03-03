@@ -1725,100 +1725,424 @@ async function exportToPDF() {
                 
                 addSubSection(`Subscription: ${sub.name}`);
                 
-                // Host Pools
+                // Host Pools - Enhanced Details
                 if (sub.hostPools.length > 0) {
                     addText('Host Pools:', 11, true);
                     
                     sub.hostPools.forEach(hp => {
-                        if (yPos > pageHeight - 35) {
+                        if (yPos > pageHeight - 70) {
                             pdf.addPage();
                             yPos = 20;
                         }
+                        
+                        // Host Pool Name
                         pdf.setFont(undefined, 'bold');
                         addBullet(`${hp.name}`, 0);
                         pdf.setFont(undefined, 'normal');
-                        addBullet(`Type: ${hp.hostPoolType}, Load Balancing: ${hp.loadBalancerType}`, 5);
-                        addBullet(`Session Hosts: ${hp.sessionHostCount} (${hp.availableHosts} available, ${hp.unavailableHosts} unavailable)`, 5);
-                        if (hp.totalUserSessions > 0) {
-                            addBullet(`User Sessions: ${hp.totalUserSessions} (${hp.activeUserSessions} active, ${hp.disconnectedUserSessions} disconnected)`, 5);
-                        }
-                        addBullet(`Max Session Limit: ${hp.maxSessionLimit}`, 5);
-                        addBullet(`Location: ${hp.location}`, 5);
                         
-                        if (hp.registrationToken) {
-                            const tokenStatus = hp.registrationToken.expired ? 'Expired' : 'Valid';
-                            addBullet(`Registration Token: ${tokenStatus}`, 5);
+                        // Basic Configuration
+                        if (hp.friendlyName) {
+                            addBullet(`Friendly Name: ${hp.friendlyName}`, 5);
                         }
-                        yPos += 2;
+                        addBullet(`Type: ${hp.hostPoolType} | Load Balancing: ${hp.loadBalancerType}`, 5);
+                        addBullet(`Location: ${hp.location} | Resource Group: ${hp.resourceGroup}`, 5);
+                        addBullet(`Max Session Limit: ${hp.maxSessionLimit || 'Not configured'}`, 5);
+                        
+                        // Validation Environment
+                        if (hp.validationEnvironment !== undefined) {
+                            const valEnv = hp.validationEnvironment ? 'Yes [+]' : 'No';
+                            addBullet(`Validation Environment: ${valEnv}`, 5);
+                        }
+                        
+                        // Preferred App Group Type
+                        if (hp.preferredAppGroupType) {
+                            addBullet(`Preferred App Group Type: ${hp.preferredAppGroupType}`, 5);
+                        }
+                        
+                        // Session Host Statistics
+                        addBullet(`Session Hosts: ${hp.sessionHostCount} total (${hp.availableHosts} available, ${hp.unavailableHosts} unavailable)`, 5);
+                        
+                        // User Session Statistics
+                        if (hp.totalUserSessions > 0) {
+                            addBullet(`User Sessions: ${hp.totalUserSessions} total (${hp.activeUserSessions} active, ${hp.disconnectedUserSessions} disconnected)`, 5);
+                            if (hp.sessionHostCount > 0) {
+                                const avgSessions = (hp.totalUserSessions / hp.sessionHostCount).toFixed(1);
+                                addBullet(`Average Sessions per Host: ${avgSessions}`, 5);
+                            }
+                        } else {
+                            addBullet(`User Sessions: 0 (no active users)`, 5);
+                        }
+                        
+                        // Registration Token Details
+                        if (hp.registrationToken) {
+                            const tokenStatus = hp.registrationToken.expired ? 'Expired [!]' : 'Valid [+]';
+                            addBullet(`Registration Token: ${tokenStatus}`, 5);
+                            if (hp.registrationToken.expiryTime) {
+                                const expiryDate = new Date(hp.registrationToken.expiryTime);
+                                addBullet(`Token Expiry: ${expiryDate.toLocaleString()}`, 10);
+                            }
+                        } else {
+                            addBullet(`Registration Token: Not configured`, 5);
+                        }
+                        
+                        // Scaling Plan Assignment
+                        if (hp.scalingPlanReference) {
+                            addBullet(`Scaling Plan: ${hp.scalingPlanReference} [+]`, 5);
+                        } else {
+                            addBullet(`Scaling Plan: None assigned [-]`, 5);
+                        }
+                        
+                        yPos += 3;
                     });
                     yPos += 3;
                 }
                 
-                // Session Hosts Detail
+                // Session Hosts Detail - Enhanced
                 if (sub.hostPools.length > 0) {
-                    const allSessionHosts = sub.hostPools.flatMap(hp => hp.sessionHosts || []);
+                    const allSessionHosts = sub.hostPools.flatMap(hp => 
+                        (hp.sessionHosts || []).map(sh => ({...sh, hostPoolName: hp.name, hostPoolType: hp.hostPoolType}))
+                    );
                     if (allSessionHosts.length > 0) {
                         if (yPos > pageHeight - 30) {
                             pdf.addPage();
                             yPos = 20;
                         }
                         
-                        addText('Session Hosts:', 11, true);
-                        allSessionHosts.slice(0, 20).forEach(sh => {
-                            if (yPos > pageHeight - 20) {
+                        addText('Session Hosts (Detailed):', 11, true);
+                        const displayLimit = 30; // Show up to 30 session hosts with details
+                        allSessionHosts.slice(0, displayLimit).forEach(sh => {
+                            if (yPos > pageHeight - 50) {
                                 pdf.addPage();
                                 yPos = 20;
                             }
-                            addBullet(`${sh.name} - Status: ${sh.status}, Sessions: ${sh.sessions}`, 0);
+                            
+                            // Session Host Name
+                            pdf.setFont(undefined, 'bold');
+                            addBullet(`${sh.name}`, 0);
+                            pdf.setFont(undefined, 'normal');
+                            
+                            // Host Pool and Status
+                            addBullet(`Host Pool: ${sh.hostPoolName} (${sh.hostPoolType})`, 5);
+                            const statusIndicator = sh.status === 'Available' ? '[+]' : '[-]';
+                            addBullet(`Status: ${sh.status} ${statusIndicator}`, 5);
+                            
+                            // Session Information
+                            if (sh.sessions > 0) {
+                                addBullet(`Sessions: ${sh.sessions} total (${sh.activeSessions || 0} active, ${sh.disconnectedSessions || 0} disconnected)`, 5);
+                            } else {
+                                addBullet(`Sessions: 0 (no active users)`, 5);
+                            }
+                            
+                            const newSessionStatus = sh.allowNewSession ? 'Allowed' : 'Blocked';
+                            addBullet(`New Sessions: ${newSessionStatus}`, 5);
+                            
+                            // Assigned User (for Personal desktops)
+                            if (sh.assignedUser) {
+                                addBullet(`Assigned User: ${sh.assignedUser}`, 5);
+                            }
+                            
+                            // Agent Information
+                            if (sh.agentVersion) {
+                                addBullet(`Agent Version: ${sh.agentVersion}`, 5);
+                            }
+                            
+                            if (sh.osVersion) {
+                                addBullet(`OS Version: ${sh.osVersion}`, 5);
+                            }
+                            
+                            // Last Heartbeat
+                            if (sh.lastHeartBeat) {
+                                try {
+                                    const lastHeartbeat = new Date(sh.lastHeartBeat);
+                                    addBullet(`Last Heartbeat: ${lastHeartbeat.toLocaleString()}`, 5);
+                                } catch (e) {
+                                    // Skip if date parsing fails
+                                }
+                            }
+                            
+                            // Update State
+                            if (sh.updateState) {
+                                addBullet(`Update State: ${sh.updateState}`, 5);
+                            }
+                            
+                            // Network Information
+                            if (sh.network) {
+                                addBullet(`Network: ${sh.network.vnetName}/${sh.network.subnetName}`, 5);
+                                if (sh.network.privateIP) {
+                                    addBullet(`Private IP: ${sh.network.privateIP}`, 10);
+                                }
+                            }
+                            
+                            // Image Information
+                            if (sh.image) {
+                                if (sh.image.type === 'Gallery') {
+                                    addBullet(`Image: Gallery - ${sh.image.imageName} (${sh.image.version})`, 5);
+                                } else if (sh.image.type === 'Marketplace') {
+                                    addBullet(`Image: Marketplace - ${sh.image.publisher}/${sh.image.offer}/${sh.image.sku}`, 5);
+                                }
+                            }
+                            
+                            yPos += 2;
                         });
-                        if (allSessionHosts.length > 20) {
-                            addBullet(`... and ${allSessionHosts.length - 20} more session hosts`, 0);
+                        if (allSessionHosts.length > displayLimit) {
+                            addBullet(`... and ${allSessionHosts.length - displayLimit} more session hosts (summary view only)`, 0);
                         }
                         yPos += 3;
                     }
                 }
                 
-                // Workspaces
+                // Workspaces - Enhanced Details
                 if (sub.workspaces.length > 0) {
-                    if (yPos > pageHeight - 20) {
+                    if (yPos > pageHeight - 30) {
                         pdf.addPage();
                         yPos = 20;
                     }
                     addText('Workspaces:', 11, true);
+                    
                     sub.workspaces.forEach(ws => {
-                        addBullet(`${ws.name} - Location: ${ws.location}`, 0);
+                        if (yPos > pageHeight - 40) {
+                            pdf.addPage();
+                            yPos = 20;
+                        }
+                        
+                        // Workspace Name
+                        pdf.setFont(undefined, 'bold');
+                        addBullet(`${ws.name}`, 0);
+                        pdf.setFont(undefined, 'normal');
+                        
+                        // Friendly Name and Description
+                        if (ws.friendlyName) {
+                            addBullet(`Friendly Name: ${ws.friendlyName}`, 5);
+                        }
+                        if (ws.description) {
+                            addBullet(`Description: ${ws.description}`, 5);
+                        }
+                        
+                        // Basic Information
+                        addBullet(`Location: ${ws.location} | Resource Group: ${ws.resourceGroup}`, 5);
+                        
+                        // Connected Application Groups
+                        if (ws.applicationGroupReferences && ws.applicationGroupReferences.length > 0) {
+                            addBullet(`Connected Application Groups: ${ws.applicationGroupReferences.length}`, 5);
+                            
+                            // List application group names
+                            ws.applicationGroupReferences.forEach(agRef => {
+                                const agName = agRef.split('/').pop();
+                                addBullet(`- ${agName}`, 10);
+                            });
+                        } else {
+                            addBullet(`Connected Application Groups: 0 [-]`, 5);
+                        }
+                        
+                        yPos += 2;
                     });
                     yPos += 3;
                 }
                 
-                // Application Groups
+                // Application Groups - Enhanced Details
                 if (sub.applicationGroups.length > 0) {
-                    if (yPos > pageHeight - 20) {
+                    if (yPos > pageHeight - 30) {
                         pdf.addPage();
                         yPos = 20;
                     }
                     addText('Application Groups:', 11, true);
+                    
                     sub.applicationGroups.forEach(ag => {
-                        addBullet(`${ag.name} (${ag.applicationGroupType})`, 0);
-                        if (ag.applications && ag.applications.length > 0) {
-                            addBullet(`Applications: ${ag.applications.length}`, 5);
+                        if (yPos > pageHeight - 60) {
+                            pdf.addPage();
+                            yPos = 20;
                         }
+                        
+                        // Application Group Name
+                        pdf.setFont(undefined, 'bold');
+                        addBullet(`${ag.name}`, 0);
+                        pdf.setFont(undefined, 'normal');
+                        
+                        // Friendly Name
+                        if (ag.friendlyName) {
+                            addBullet(`Friendly Name: ${ag.friendlyName}`, 5);
+                        }
+                        
+                        // Basic Configuration
+                        addBullet(`Type: ${ag.applicationGroupType}`, 5);
+                        addBullet(`Location: ${ag.location} | Resource Group: ${ag.resourceGroup}`, 5);
+                        
+                        // Host Pool Assignment
+                        if (ag.hostPoolArmPath) {
+                            const hpName = ag.hostPoolArmPath.split('/').pop();
+                            addBullet(`Host Pool: ${hpName}`, 5);
+                        }
+                        
+                        // Workspace Assignment
+                        if (ag.workspaceArmPath) {
+                            const wsName = ag.workspaceArmPath.split('/').pop();
+                            addBullet(`Workspace: ${wsName}`, 5);
+                        } else {
+                            addBullet(`Workspace: Not assigned [-]`, 5);
+                        }
+                        
+                        // Applications (for RemoteApp type)
+                        if (ag.applicationGroupType === 'RemoteApp') {
+                            if (ag.applications && ag.applications.length > 0) {
+                                addBullet(`Published Applications: ${ag.applications.length}`, 5);
+                                
+                                ag.applications.forEach(app => {
+                                    if (yPos > pageHeight - 25) {
+                                        pdf.addPage();
+                                        yPos = 20;
+                                    }
+                                    
+                                    const appDisplayName = app.friendlyName || app.name;
+                                    addBullet(`- ${appDisplayName}`, 10);
+                                    
+                                    if (app.filePath) {
+                                        addBullet(`Path: ${app.filePath}`, 15);
+                                    }
+                                    
+                                    if (app.commandLineSetting) {
+                                        addBullet(`Command Line: ${app.commandLineSetting}`, 15);
+                                    }
+                                    
+                                    const portalStatus = app.showInPortal ? 'Yes' : 'No';
+                                    addBullet(`Show in Portal: ${portalStatus}`, 15);
+                                });
+                            } else {
+                                addBullet(`Published Applications: 0 (no apps configured) [-]`, 5);
+                            }
+                        } else {
+                            addBullet(`Type: Desktop (full desktop access)`, 5);
+                        }
+                        
+                        yPos += 2;
                     });
                     yPos += 3;
                 }
                 
-                // Scaling Plans
+                // Scaling Plans - Enhanced Details
                 if (sub.scalingPlans && sub.scalingPlans.length > 0) {
-                    if (yPos > pageHeight - 20) {
+                    if (yPos > pageHeight - 30) {
                         pdf.addPage();
                         yPos = 20;
                     }
                     addText('Scaling Plans:', 11, true);
+                    
                     sub.scalingPlans.forEach(sp => {
-                        addBullet(`${sp.name} (${sp.hostPoolType || 'N/A'})`, 0);
+                        if (yPos > pageHeight - 100) {
+                            pdf.addPage();
+                            yPos = 20;
+                        }
+                        
+                        // Scaling Plan Name
+                        pdf.setFont(undefined, 'bold');
+                        addBullet(`${sp.name}`, 0);
+                        pdf.setFont(undefined, 'normal');
+                        
+                        // Friendly Name and Description
+                        if (sp.friendlyName) {
+                            addBullet(`Friendly Name: ${sp.friendlyName}`, 5);
+                        }
+                        if (sp.description) {
+                            addBullet(`Description: ${sp.description}`, 5);
+                        }
+                        
+                        // Basic Configuration
+                        addBullet(`Location: ${sp.location} | Resource Group: ${sp.resourceGroup}`, 5);
+                        addBullet(`Host Pool Type: ${sp.hostPoolType || 'Not specified'}`, 5);
+                        addBullet(`Time Zone: ${sp.timeZone || 'Not specified'}`, 5);
+                        
+                        if (sp.exclusionTag) {
+                            addBullet(`Exclusion Tag: ${sp.exclusionTag}`, 5);
+                        }
+                        
+                        // Host Pool References
+                        if (sp.hostPoolReferences && sp.hostPoolReferences.length > 0) {
+                            addBullet(`Assigned to Host Pools: ${sp.hostPoolReferences.length}`, 5);
+                            
+                            sp.hostPoolReferences.forEach(hpRef => {
+                                const hpName = hpRef.hostPoolArmPath.split('/').pop();
+                                const enabledStatus = hpRef.scalingPlanEnabled ? 'Enabled [+]' : 'Disabled [-]';
+                                addBullet(`- ${hpName}: ${enabledStatus}`, 10);
+                            });
+                        } else {
+                            addBullet(`Assigned to Host Pools: 0 (not assigned) [-]`, 5);
+                        }
+                        
+                        yPos += 2;
+                        
+                        // Schedules with detailed phase information
                         if (sp.schedules && sp.schedules.length > 0) {
                             addBullet(`Schedules: ${sp.schedules.length}`, 5);
+                            
+                            sp.schedules.forEach((schedule, scheduleIdx) => {
+                                if (yPos > pageHeight - 80) {
+                                    pdf.addPage();
+                                    yPos = 20;
+                                }
+                                
+                                pdf.setFont(undefined, 'bold');
+                                addBullet(`Schedule ${scheduleIdx + 1}: ${schedule.name || 'Unnamed'}`, 10);
+                                pdf.setFont(undefined, 'normal');
+                                
+                                // Days of Week
+                                addBullet(`Days: ${schedule.daysOfWeek || 'Not specified'}`, 15);
+                                
+                                // Ramp-Up Phase
+                                pdf.setFont(undefined, 'bold');
+                                addBullet(`Ramp-Up Phase:`, 15);
+                                pdf.setFont(undefined, 'normal');
+                                addBullet(`Start Time: ${schedule.rampUpStartTime}`, 20);
+                                addBullet(`Load Balancing: ${schedule.rampUpLoadBalancingAlgorithm || 'Not specified'}`, 20);
+                                if (schedule.rampUpMinimumHostsPct !== undefined) {
+                                    addBullet(`Minimum Hosts: ${schedule.rampUpMinimumHostsPct}%`, 20);
+                                }
+                                if (schedule.rampUpCapacityThresholdPct !== undefined) {
+                                    addBullet(`Capacity Threshold: ${schedule.rampUpCapacityThresholdPct}%`, 20);
+                                }
+                                
+                                // Peak Phase
+                                pdf.setFont(undefined, 'bold');
+                                addBullet(`Peak Phase:`, 15);
+                                pdf.setFont(undefined, 'normal');
+                                addBullet(`Start Time: ${schedule.peakStartTime}`, 20);
+                                addBullet(`Load Balancing: ${schedule.peakLoadBalancingAlgorithm || 'Not specified'}`, 20);
+                                
+                                // Ramp-Down Phase
+                                pdf.setFont(undefined, 'bold');
+                                addBullet(`Ramp-Down Phase:`, 15);
+                                pdf.setFont(undefined, 'normal');
+                                addBullet(`Start Time: ${schedule.rampDownStartTime}`, 20);
+                                addBullet(`Load Balancing: ${schedule.rampDownLoadBalancingAlgorithm || 'Not specified'}`, 20);
+                                if (schedule.rampDownMinimumHostsPct !== undefined) {
+                                    addBullet(`Minimum Hosts: ${schedule.rampDownMinimumHostsPct}%`, 20);
+                                }
+                                if (schedule.rampDownCapacityThresholdPct !== undefined) {
+                                    addBullet(`Capacity Threshold: ${schedule.rampDownCapacityThresholdPct}%`, 20);
+                                }
+                                if (schedule.rampDownForceLogoffUser !== undefined) {
+                                    const forceLogoff = schedule.rampDownForceLogoffUser ? 'Yes' : 'No';
+                                    addBullet(`Force Logoff Users: ${forceLogoff}`, 20);
+                                }
+                                if (schedule.rampDownWaitTimeMinute !== undefined) {
+                                    addBullet(`Wait Time: ${schedule.rampDownWaitTimeMinute} minutes`, 20);
+                                }
+                                if (schedule.rampDownNotificationMessage) {
+                                    addBullet(`Notification: "${schedule.rampDownNotificationMessage}"`, 20);
+                                }
+                                
+                                // Off-Peak Phase
+                                pdf.setFont(undefined, 'bold');
+                                addBullet(`Off-Peak Phase:`, 15);
+                                pdf.setFont(undefined, 'normal');
+                                addBullet(`Start Time: ${schedule.offPeakStartTime}`, 20);
+                                addBullet(`Load Balancing: ${schedule.offPeakLoadBalancingAlgorithm || 'Not specified'}`, 20);
+                                
+                                yPos += 2;
+                            });
+                        } else {
+                            addBullet(`Schedules: 0 (not configured) [-]`, 5);
                         }
+                        
+                        yPos += 3;
                     });
                     yPos += 3;
                 }
