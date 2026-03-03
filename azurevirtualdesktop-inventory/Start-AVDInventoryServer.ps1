@@ -7,6 +7,10 @@
     with authentication, navigation, PDF export, and connection diagrams.
 .PARAMETER Port
     Port number for the web server (default: 8080)
+.AUTHOR
+    Alex ter Neuzen - https://www.gettothe.cloud
+.LINK
+    https://www.gettothe.cloud
 #>
 
 param(

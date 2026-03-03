@@ -2786,7 +2786,11 @@ async function exportToPDF() {
             pdf.setPage(i);
             pdf.setFontSize(8);
             pdf.setTextColor(150, 150, 150);
+            // Page number
             pdf.text(`Page ${i} of ${pageCount}`, margin + maxWidth - 20, 290);
+            // Attribution footer
+            pdf.setFontSize(7);
+            pdf.text('Created by Alex ter Neuzen | www.gettothe.cloud', margin, 290);
         }
         
         // Save PDF

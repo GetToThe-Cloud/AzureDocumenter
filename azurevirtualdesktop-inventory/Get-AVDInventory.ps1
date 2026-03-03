@@ -3,6 +3,10 @@
     Azure Virtual Desktop Inventory Collection Module
 .DESCRIPTION
     Collects comprehensive inventory data from Azure Virtual Desktop environments
+.AUTHOR
+    Alex ter Neuzen - https://www.gettothe.cloud
+.LINK
+    https://www.gettothe.cloud
 #>
 
 function Get-AVDInventoryData {

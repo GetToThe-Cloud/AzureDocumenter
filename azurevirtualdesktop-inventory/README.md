@@ -215,6 +215,11 @@ azurevirtualdesktop-inventory/
 └── README.md                     # This file
 ```
 
+## 👨‍💻 Author
+
+**Alex ter Neuzen**  
+🌐 [www.gettothe.cloud](https://www.gettothe.cloud)
+
 ## 🤝 Contributing
 
 Feel free to submit issues or pull requests to improve this dashboard.
