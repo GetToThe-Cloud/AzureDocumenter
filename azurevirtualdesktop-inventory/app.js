@@ -1814,7 +1814,12 @@ async function exportToPDF() {
                     }
                     
                     addText('Host Pools:', 11, true);
-                    yPos += 3;
+                    pdf.setFontSize(8);
+                    pdf.setFont(undefined, 'normal');
+                    pdf.setTextColor(80, 80, 80);
+                    pdf.text('Collections of session hosts with the same configuration. Host pools define load balancing and resource allocation.', margin, yPos);
+                    pdf.setTextColor(0, 0, 0);
+                    yPos += 5;
                     
                     // Main Host Pools Table
                     const hostPoolTableData = sub.hostPools.map(hp => {
@@ -1961,7 +1966,12 @@ async function exportToPDF() {
                         }
                         
                         addText('Session Hosts:', 11, true);
-                        yPos += 3;
+                        pdf.setFontSize(8);
+                        pdf.setFont(undefined, 'normal');
+                        pdf.setTextColor(80, 80, 80);
+                        pdf.text('Virtual machines that host user sessions and run applications. Each session host is assigned to a host pool.', margin, yPos);
+                        pdf.setTextColor(0, 0, 0);
+                        yPos += 5;
                         
                         // Prepare session host table data
                         const sessionHostTableData = allSessionHosts.map(sh => {
@@ -1969,33 +1979,44 @@ async function exportToPDF() {
                             const sessions = sh.sessions > 0 ? `${sh.sessions} (${sh.activeSessions || 0}A/${sh.disconnectedSessions || 0}D)` : '0';
                             const network = sh.network && sh.network.vnetName ? `${sh.network.vnetName}` : 'N/A';
                             const privateIP = sh.network && sh.network.privateIP ? sh.network.privateIP : 'N/A';
-                            const assignedUser = sh.assignedUser || '-';
+                            
+                            // Format image source
+                            let imageSource = 'N/A';
+                            if (sh.image) {
+                                if (sh.image.type === 'Gallery') {
+                                    imageSource = `Gallery: ${sh.image.imageName}`;
+                                } else if (sh.image.type === 'Marketplace') {
+                                    imageSource = `Marketplace: ${sh.image.offer || 'Unknown'}`;
+                                }
+                            }
                             
                             return [
-                                sh.name.length > 30 ? sh.name.substring(0, 27) + '...' : sh.name,
-                                sh.hostPoolName.length > 25 ? sh.hostPoolName.substring(0, 22) + '...' : sh.hostPoolName,
+                                sh.name.length > 28 ? sh.name.substring(0, 25) + '...' : sh.name,
+                                sh.hostPoolName.length > 22 ? sh.hostPoolName.substring(0, 19) + '...' : sh.hostPoolName,
                                 status,
                                 sessions,
-                                network.length > 20 ? network.substring(0, 17) + '...' : network,
-                                privateIP
+                                network.length > 18 ? network.substring(0, 15) + '...' : network,
+                                privateIP,
+                                imageSource.length > 25 ? imageSource.substring(0, 22) + '...' : imageSource
                             ];
                         });
                         
                         pdf.autoTable({
                             startY: yPos,
-                            head: [['Session Host', 'Host Pool', 'Status', 'Sessions', 'VNet', 'Private IP']],
+                            head: [['Session Host', 'Host Pool', 'Status', 'Sessions', 'VNet', 'Private IP', 'Image Source']],
                             body: sessionHostTableData,
                             theme: 'grid',
-                            headStyles: { fillColor: [0, 120, 212], fontSize: 8, fontStyle: 'bold' },
-                            bodyStyles: { fontSize: 7 },
+                            headStyles: { fillColor: [0, 120, 212], fontSize: 7, fontStyle: 'bold' },
+                            bodyStyles: { fontSize: 6.5 },
                             margin: { left: margin, right: margin },
                             columnStyles: {
-                                0: { cellWidth: 52 },
-                                1: { cellWidth: 40 },
-                                2: { cellWidth: 22 },
-                                3: { cellWidth: 20 },
-                                4: { cellWidth: 30 },
-                                5: { cellWidth: 24 }
+                                0: { cellWidth: 42 },
+                                1: { cellWidth: 32 },
+                                2: { cellWidth: 20 },
+                                3: { cellWidth: 18 },
+                                4: { cellWidth: 26 },
+                                5: { cellWidth: 22 },
+                                6: { cellWidth: 28 }
                             },
                             didParseCell: function(data) {
                                 // Color code status column
@@ -2026,7 +2047,12 @@ async function exportToPDF() {
                     }
                     
                     addText('Workspaces:', 11, true);
-                    yPos += 3;
+                    pdf.setFontSize(8);
+                    pdf.setFont(undefined, 'normal');
+                    pdf.setTextColor(80, 80, 80);
+                    pdf.text('User-facing entry points for AVD. Workspaces group application groups and provide a unified user experience.', margin, yPos);
+                    pdf.setTextColor(0, 0, 0);
+                    yPos += 5;
                     
                     // Main Workspaces Table
                     const workspaceTableData = sub.workspaces.map(ws => {
@@ -2138,7 +2164,12 @@ async function exportToPDF() {
                         yPos = 20;
                     }
                     addText('Application Groups:', 11, true);
-                    yPos += 3;
+                    pdf.setFontSize(8);
+                    pdf.setFont(undefined, 'normal');
+                    pdf.setTextColor(80, 80, 80);
+                    pdf.text('Logical groupings of applications or desktops. Application groups are assigned to workspaces and accessed by users.', margin, yPos);
+                    pdf.setTextColor(0, 0, 0);
+                    yPos += 5;
                     
                     // Main Application Groups Table
                     const appGroupTableData = sub.applicationGroups.map(ag => {
@@ -2255,7 +2286,12 @@ async function exportToPDF() {
                     }
                     
                     addText('Scaling Plans:', 11, true);
-                    yPos += 3;
+                    pdf.setFontSize(8);
+                    pdf.setFont(undefined, 'normal');
+                    pdf.setTextColor(80, 80, 80);
+                    pdf.text('Automated scaling configurations that adjust session host availability based on time schedules and usage patterns.', margin, yPos);
+                    pdf.setTextColor(0, 0, 0);
+                    yPos += 5;
                     
                     sub.scalingPlans.forEach(sp => {
                         if (yPos > pageHeight - 40) {
@@ -2466,27 +2502,21 @@ async function exportToPDF() {
                     yPos += 3;
                 }
                 
-                // Compute Galleries
+                // Compute Galleries (Azure Compute Gallery - formerly Shared Image Gallery)
                 if (sub.computeGalleries && sub.computeGalleries.length > 0) {
-                    if (yPos > pageHeight - 20) {
+                    if (yPos > pageHeight - 30) {
                         pdf.addPage();
                         yPos = 20;
                     }
                     addText('Azure Compute Galleries:', 11, true);
-                    sub.computeGalleries.forEach(gallery => {
-                        const imageCount = gallery.images ? gallery.images.length : 0;
-                        addBullet(`${gallery.name} (${imageCount} images)`, 0);
-                        if (gallery.images && gallery.images.length > 0) {
-                            gallery.images.slice(0, 5).forEach(img => {
-                                addBullet(`${img.name} - ${img.osType}`, 5);
-                            });
-                            if (gallery.images.length > 5) {
-                                addBullet(`... and ${gallery.images.length - 5} more images`, 5);
-                            }
-                        }
-                    });
-                    yPos += 3;
-                }
+                    pdf.setFontSize(8);
+                    pdf.setFont(undefined, 'normal');
+                    pdf.setTextColor(80, 80, 80);
+                    pdf.text('Custom image repositories for storing and managing VM images. Galleries enable image versioning and replication.', margin, yPos);
+                    pdf.setTextColor(0, 0, 0);
+                    yPos += 5;
+                    
+                    sub.computeGalleries.forEach(gallery => {\n                        if (yPos > pageHeight - 40) {\n                            pdf.addPage();\n                            yPos = 20;\n                        }\n                        \n                        // Gallery Header\n                        pdf.setFont(undefined, 'bold');\n                        pdf.setFontSize(10);\n                        pdf.text(gallery.name, margin, yPos);\n                        yPos += 4;\n                        pdf.setFont(undefined, 'normal');\n                        pdf.setFontSize(8);\n                        \n                        // Gallery basic info\n                        const galleryBasicData = [\n                            ['Location', gallery.location],\n                            ['Resource Group', gallery.resourceGroup]\n                        ];\n                        if (gallery.description) {\n                            galleryBasicData.push(['Description', gallery.description]);\n                        }\n                        \n                        pdf.autoTable({\n                            startY: yPos,\n                            body: galleryBasicData,\n                            theme: 'plain',\n                            bodyStyles: { fontSize: 7 },\n                            margin: { left: margin + 3, right: margin },\n                            columnStyles: {\n                                0: { cellWidth: 40, fontStyle: 'bold' },\n                                1: { cellWidth: 140 }\n                            }\n                        });\n                        yPos = pdf.lastAutoTable.finalY + 5;\n                        \n                        // Image Definitions Table\n                        if (gallery.images && gallery.images.length > 0) {\n                            if (yPos > pageHeight - 30) {\n                                pdf.addPage();\n                                yPos = 20;\n                            }\n                            \n                            pdf.setFontSize(9);\n                            pdf.setFont(undefined, 'bold');\n                            pdf.text('Image Definitions:', margin + 3, yPos);\n                            yPos += 4;\n                            pdf.setFont(undefined, 'normal');\n                            \n                            const imageTableData = gallery.images.map(img => {\n                                const versionCount = img.versions ? img.versions.length : 0;\n                                const usage = img.usedBySessionHosts > 0 ? `${img.usedBySessionHosts}` : '0';\n                                const identifier = `${img.publisher}/${img.offer}/${img.sku}`;\n                                \n                                return [\n                                    img.name.length > 30 ? img.name.substring(0, 27) + '...' : img.name,\n                                    img.osType,\n                                    img.osState,\n                                    versionCount.toString(),\n                                    usage,\n                                    identifier.length > 40 ? identifier.substring(0, 37) + '...' : identifier\n                                ];\n                            });\n                            \n                            pdf.autoTable({\n                                startY: yPos,\n                                head: [['Image Name', 'OS Type', 'OS State', 'Versions', 'In Use', 'Identifier']],\n                                body: imageTableData,\n                                theme: 'grid',\n                                headStyles: { fillColor: [52, 152, 219], fontSize: 7, fontStyle: 'bold' },\n                                bodyStyles: { fontSize: 6.5 },\n                                margin: { left: margin + 5, right: margin },\n                                columnStyles: {\n                                    0: { cellWidth: 40 },\n                                    1: { cellWidth: 20, halign: 'center' },\n                                    2: { cellWidth: 20, halign: 'center' },\n                                    3: { cellWidth: 18, halign: 'center' },\n                                    4: { cellWidth: 16, halign: 'center' },\n                                    5: { cellWidth: 60 }\n                                },\n                                didParseCell: function(data) {\n                                    // Highlight usage column\n                                    if (data.column.index === 4 && data.section === 'body') {\n                                        const usage = parseInt(data.cell.raw);\n                                        if (usage > 0) {\n                                            data.cell.styles.textColor = [16, 124, 16];\n                                            data.cell.styles.fontStyle = 'bold';\n                                        } else {\n                                            data.cell.styles.textColor = [150, 150, 150];\n                                        }\n                                    }\n                                }\n                            });\n                            yPos = pdf.lastAutoTable.finalY + 5;\n                            \n                            // Image Versions Details (for images with versions)\n                            const imagesWithVersions = gallery.images.filter(img => img.versions && img.versions.length > 0);\n                            if (imagesWithVersions.length > 0) {\n                                if (yPos > pageHeight - 30) {\n                                    pdf.addPage();\n                                    yPos = 20;\n                                }\n                                \n                                pdf.setFontSize(9);\n                                pdf.setFont(undefined, 'bold');\n                                pdf.text('Image Versions:', margin + 3, yPos);\n                                yPos += 4;\n                                pdf.setFont(undefined, 'normal');\n                                \n                                imagesWithVersions.forEach(img => {\n                                    if (yPos > pageHeight - 30) {\n                                        pdf.addPage();\n                                        yPos = 20;\n                                    }\n                                    \n                                    pdf.setFontSize(8);\n                                    pdf.setFont(undefined, 'bold');\n                                    pdf.text(`${img.name}:`, margin + 5, yPos);\n                                    yPos += 4;\n                                    pdf.setFont(undefined, 'normal');\n                                    \n                                    const versionTableData = img.versions.map(ver => {\n                                        const pubDate = ver.publishingDate !== 'N/A' ? new Date(ver.publishingDate).toLocaleDateString() : 'N/A';\n                                        const replicas = ver.replicaCount ? ver.replicaCount.toString() : 'Default';\n                                        \n                                        return [\n                                            ver.name,\n                                            pubDate,\n                                            replicas\n                                        ];\n                                    });\n                                    \n                                    pdf.autoTable({\n                                        startY: yPos,\n                                        head: [['Version', 'Published Date', 'Replica Count']],\n                                        body: versionTableData,\n                                        theme: 'striped',\n                                        headStyles: { fillColor: [149, 165, 166], fontSize: 7 },\n                                        bodyStyles: { fontSize: 7 },\n                                        margin: { left: margin + 8, right: margin },\n                                        columnStyles: {\n                                            0: { cellWidth: 30 },\n                                            1: { cellWidth: 40 },\n                                            2: { cellWidth: 30, halign: 'center' }\n                                        }\n                                    });\n                                    yPos = pdf.lastAutoTable.finalY + 3;\n                                });\n                            }\n                        } else {\n                            pdf.setFontSize(8);\n                            pdf.setTextColor(150, 150, 150);\n                            pdf.text('No images defined in this gallery.', margin + 5, yPos);\n                            pdf.setTextColor(0, 0, 0);\n                            yPos += 3;\n                        }\n                        \n                        yPos += 3;\n                    });\n                    yPos += 3;\n                }
                 
                 yPos += 5;
             });
