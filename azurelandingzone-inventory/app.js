@@ -1729,13 +1729,23 @@ async function exportToPDF() {
         pdf.text('Azure Landing Zone Assessment Report', margin, yPos);
         pdf.text(`Generated: ${new Date().toLocaleString()}`, margin + maxWidth - 45, yPos);
         
-        // Add page numbers to all pages
+        // Add page numbers and watermark to all pages
         const pageCount = pdf.internal.getNumberOfPages();
         for (let i = 1; i <= pageCount; i++) {
             pdf.setPage(i);
+            
+            // Page number
             pdf.setFontSize(8);
             pdf.setTextColor(150, 150, 150);
             pdf.text(`Page ${i} of ${pageCount}`, margin + maxWidth - 20, 290);
+            
+            // Watermark
+            pdf.setFontSize(7);
+            pdf.setTextColor(180, 180, 180);
+            pdf.setFont(undefined, 'italic');
+            const watermarkText = 'Created by Alex ter Neuzen for https://www.gettothe.cloud';
+            const watermarkWidth = pdf.getTextWidth(watermarkText);
+            pdf.text(watermarkText, (210 - watermarkWidth) / 2, 293);
         }
         
         // Save with timestamp
