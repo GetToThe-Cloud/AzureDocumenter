@@ -20,6 +20,8 @@ async function checkAuthStatus() {
             loadInventory();
         } else {
             showAuthRequired();
+            // Automatically request Azure login
+            await requestAzureLogin();
         }
     } catch (error) {
         console.error('Error checking auth status:', error);
@@ -39,7 +41,7 @@ function updateAuthUI(data) {
         `;
     } else {
         authStatus.className = 'auth-status not-authenticated';
-        authStatus.innerHTML = '⚠️ Not authenticated with Azure';
+        authStatus.innerHTML = '⚠️ Not authenticated with Azure. Initiating login...';
     }
 }
 
@@ -53,29 +55,42 @@ function showAuthRequired() {
     });
 }
 
-// Authenticate with Azure
-async function authenticateAzure() {
-    const btn = event.target;
-    btn.disabled = true;
-    btn.innerHTML = '<span class="icon">⏳</span> Authenticating...';
+// Request Azure login (with rate limiting to prevent multiple simultaneous requests)
+let loginInProgress = false;
+async function requestAzureLogin() {
+    if (loginInProgress) {
+        console.log('Login already in progress, skipping duplicate request');
+        return;
+    }
+    
+    loginInProgress = true;
+    const authStatus = document.getElementById('authStatus');
     
     try {
+        authStatus.innerHTML = '🔐 Requesting Azure login... Please check your browser or terminal for authentication instructions.';
+        
         const response = await fetch('/api/auth/login', { method: 'POST' });
         const data = await response.json();
         
         if (data.success) {
-            alert('Authentication successful! Please wait while we load your inventory...');
+            authStatus.innerHTML = '✓ Authentication successful! Loading data...';
             location.reload();
         } else {
-            alert('Authentication failed: ' + data.message);
-            btn.disabled = false;
-            btn.innerHTML = 'Sign in to Azure';
+            authStatus.className = 'auth-status not-authenticated';
+            authStatus.innerHTML = `⚠️ Authentication required. ${data.message || 'Please sign in to Azure.'}`;
         }
     } catch (error) {
-        alert('Authentication error: ' + error.message);
-        btn.disabled = false;
-        btn.innerHTML = 'Sign in to Azure';
+        console.error('Error requesting Azure login:', error);
+        authStatus.className = 'auth-status not-authenticated';
+        authStatus.innerHTML = '⚠️ Authentication request failed. Please check the server console or click the button below to retry.';
+    } finally {
+        loginInProgress = false;
     }
+}
+
+// Authenticate with Azure (manual trigger)
+async function authenticateAzure() {
+    await requestAzureLogin();
 }
 
 // Load inventory data

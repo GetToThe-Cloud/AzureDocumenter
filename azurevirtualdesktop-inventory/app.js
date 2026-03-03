@@ -27,33 +27,55 @@ async function checkAuthStatus() {
             await loadInventoryData();
         } else {
             authStatusDiv.className = 'auth-status not-authenticated';
-            authStatusDiv.innerHTML = '⚠ Not authenticated with Azure. Please sign in to view inventory data.';
+            authStatusDiv.innerHTML = '⚠ Not authenticated with Azure. Initiating login...';
             
+            // Show authentication required UI
             document.getElementById('authRequired').style.display = 'flex';
+            
+            // Automatically request Azure login
+            await requestAzureLogin();
         }
     } catch (error) {
         console.error('Error checking auth status:', error);
     }
 }
 
-// Authenticate with Azure
-async function authenticateAzure() {
+// Request Azure login (with rate limiting to prevent multiple simultaneous requests)
+let loginInProgress = false;
+async function requestAzureLogin() {
+    if (loginInProgress) {
+        console.log('Login already in progress, skipping duplicate request');
+        return;
+    }
+    
+    loginInProgress = true;
+    const authStatusDiv = document.getElementById('authStatus');
+    
     try {
-        showLoading();
+        authStatusDiv.innerHTML = '🔐 Requesting Azure login... Please check your browser or terminal for authentication instructions.';
+        
         const response = await fetch('/api/auth/login', { method: 'POST' });
         const data = await response.json();
         
         if (data.success) {
+            authStatusDiv.innerHTML = '✓ Authentication successful! Loading data...';
             await checkAuthStatus();
         } else {
-            alert('Authentication failed: ' + data.message);
+            authStatusDiv.className = 'auth-status not-authenticated';
+            authStatusDiv.innerHTML = `⚠ Authentication required. ${data.message || 'Please sign in to Azure.'}`;
         }
     } catch (error) {
-        console.error('Error authenticating:', error);
-        alert('Authentication failed. Please check the server console for device code.');
+        console.error('Error requesting Azure login:', error);
+        authStatusDiv.className = 'auth-status not-authenticated';
+        authStatusDiv.innerHTML = '⚠ Authentication request failed. Please check the server console or click the button below to retry.';
     } finally {
-        hideLoading();
+        loginInProgress = false;
     }
+}
+
+// Authenticate with Azure (manual trigger)
+async function authenticateAzure() {
+    await requestAzureLogin();
 }
 
 // Load inventory data
