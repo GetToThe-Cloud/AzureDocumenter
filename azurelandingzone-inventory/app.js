@@ -652,9 +652,18 @@ async function exportToPDF() {
                 pdf.addPage();
                 yPos = 20;
             }
+            
+            // Replace Unicode symbols with PDF-safe alternatives
+            const cleanText = text
+                .replace(/✓/g, '[+]')
+                .replace(/✗/g, '[-]')
+                .replace(/⚠/g, '[!]')
+                .replace(/●/g, '*')
+                .replace(/•/g, '-');
+            
             const bulletMargin = margin + indent;
-            pdf.text('•', bulletMargin, yPos);
-            const lines = pdf.splitTextToSize(text, maxWidth - indent - 5);
+            pdf.text('-', bulletMargin, yPos);
+            const lines = pdf.splitTextToSize(cleanText, maxWidth - indent - 5);
             lines.forEach((line, idx) => {
                 pdf.text(line, bulletMargin + 5, yPos);
                 if (idx < lines.length - 1) yPos += lineHeight;
@@ -671,11 +680,11 @@ async function exportToPDF() {
         
         function getStatusEmoji(status) {
             switch(status) {
-                case 'excellent': return '🟢';
-                case 'good': return '🟡';
-                case 'fair': return '🟠';
-                case 'needs-improvement': return '🔴';
-                default: return '⚪';
+                case 'excellent': return '[EXCELLENT]';
+                case 'good': return '[GOOD]';
+                case 'fair': return '[FAIR]';
+                case 'needs-improvement': return '[NEEDS IMPROVEMENT]';
+                default: return '[UNKNOWN]';
             }
         }
         
@@ -825,23 +834,35 @@ async function exportToPDF() {
                         yPos = 20;
                     }
                     
-                    const icon = finding.startsWith('✓') ? '✓' : finding.startsWith('⚠') ? '⚠' : finding.startsWith('✗') ? '✗' : '•';
-                    const color = icon === '✓' ? [16, 185, 129] : icon === '⚠' ? [245, 158, 11] : icon === '✗' ? [239, 68, 68] : [0, 0, 0];
+                    // Replace Unicode symbols with PDF-safe alternatives
+                    let icon = '';
+                    let color = [0, 0, 0];
                     
-                    pdf.setTextColor(...color);
-                    pdf.text(icon, margin + 2, yPos);
-                    pdf.setTextColor(0, 0, 0);
+                    if (finding.startsWith('✓')) {
+                        icon = '[+]';
+                        color = [16, 185, 129]; // green
+                    } else if (finding.startsWith('⚠')) {
+                        icon = '[!]';
+                        color = [245, 158, 11]; // orange
+                    } else if (finding.startsWith('✗')) {
+                        icon = '[-]';
+                        color = [239, 68, 68]; // red
+                    }
                     
                     const cleanFinding = finding.replace(/^[✓⚠✗]\s*/, '');
-                    const lines = pdf.splitTextToSize(cleanFinding, maxWidth - 8);
+                    const textToDisplay = icon ? `${icon} ${cleanFinding}` : cleanFinding;
+                    
+                    pdf.setTextColor(...color);
+                    const lines = pdf.splitTextToSize(textToDisplay, maxWidth - 4);
                     lines.forEach(line => {
                         if (yPos > pageHeight - 5) {
                             pdf.addPage();
                             yPos = 20;
                         }
-                        pdf.text(line, margin + 7, yPos);
+                        pdf.text(line, margin + 2, yPos);
                         yPos += 5;
                     });
+                    pdf.setTextColor(0, 0, 0);
                     yPos += 1;
                 });
                 
