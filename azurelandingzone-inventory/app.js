@@ -192,6 +192,8 @@ function populateUI() {
     document.getElementById('totalRoleAssignments').textContent = summary.totalRoleAssignments || 0;
     document.getElementById('totalVNets').textContent = summary.totalVNets || 0;
     document.getElementById('totalPeerings').textContent = summary.totalPeerings || 0;
+    document.getElementById('totalPrivateDnsZones').textContent = summary.totalPrivateDnsZones || 0;
+    document.getElementById('totalPrivateEndpoints').textContent = summary.totalPrivateEndpoints || 0;
     document.getElementById('totalVMs').textContent = summary.totalVMs || 0;
     document.getElementById('totalBudgets').textContent = summary.totalBudgets || 0;
     document.getElementById('totalLocks').textContent = summary.totalLocks || 0;
@@ -445,6 +447,46 @@ function populateNetworking() {
                 <td>${nsg.location || 'N/A'}</td>
                 <td>${nsg.securityRulesCount || 0} rules</td>
                 <td><small>${nsg.subscription || 'N/A'}</small></td>
+            </tr>
+        `).join('');
+    }
+    
+    // Private DNS Zones
+    const privateDnsZonesTbody = document.getElementById('privateDnsZonesTableBody');
+    const privateDnsZones = networking.privateDnsZones || [];
+    
+    if (privateDnsZones.length === 0) {
+        privateDnsZonesTbody.innerHTML = '<tr><td colspan="6">No private DNS zones found</td></tr>';
+    } else {
+        privateDnsZonesTbody.innerHTML = privateDnsZones.map(zone => `
+            <tr>
+                <td><strong>${zone.name || 'N/A'}</strong></td>
+                <td>${zone.resourceGroup || 'N/A'}</td>
+                <td>${zone.location || 'N/A'}</td>
+                <td>${zone.numberOfRecordSets || 0}</td>
+                <td>${zone.numberOfVirtualNetworkLinks || 0}</td>
+                <td><small>${zone.subscription || 'N/A'}</small></td>
+            </tr>
+        `).join('');
+    }
+    
+    // Private Endpoints
+    const privateEndpointsTbody = document.getElementById('privateEndpointsTableBody');
+    const privateEndpoints = networking.privateEndpoints || [];
+    
+    if (privateEndpoints.length === 0) {
+        privateEndpointsTbody.innerHTML = '<tr><td colspan="8">No private endpoints found</td></tr>';
+    } else {
+        privateEndpointsTbody.innerHTML = privateEndpoints.map(pe => `
+            <tr>
+                <td><strong>${pe.name || 'N/A'}</strong></td>
+                <td>${pe.resourceGroup || 'N/A'}</td>
+                <td>${pe.location || 'N/A'}</td>
+                <td>${pe.vnet || 'N/A'}</td>
+                <td>${pe.subnet || 'N/A'}</td>
+                <td><code>${pe.privateIPs && pe.privateIPs.length > 0 ? pe.privateIPs.join(', ') : 'N/A'}</code></td>
+                <td>${pe.connectedResource || 'N/A'}</td>
+                <td><small>${pe.subscription || 'N/A'}</small></td>
             </tr>
         `).join('');
     }

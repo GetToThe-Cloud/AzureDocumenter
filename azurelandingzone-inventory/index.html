@@ -145,8 +145,20 @@
                                 <p>VNet Peerings</p>
                             </div>
                         </div>
+                        <div class="card">                            <div class="card-icon">🔐</div>
+                            <div class="card-content">
+                                <h3 id="totalPrivateEndpoints">0</h3>
+                                <p>Private Endpoints</p>
+                            </div>
+                        </div>
                         <div class="card">
-                            <div class="card-icon">�</div>
+                            <div class="card-icon">🌍</div>
+                            <div class="card-content">
+                                <h3 id="totalPrivateDnsZones">0</h3>
+                                <p>Private DNS Zones</p>
+                            </div>
+                        </div>
+                        <div class="card">                            <div class="card-icon">�</div>
                             <div class="card-content">
                                 <h3 id="totalVMs">0</h3>
                                 <p>Virtual Machines</p>
@@ -506,6 +518,50 @@
                                 </thead>
                                 <tbody id="nsgsTableBody">
                                     <tr><td colspan="5">Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="subsection">
+                        <h3>Private DNS Zones</h3>
+                        <div class="data-table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Resource Group</th>
+                                        <th>Location</th>
+                                        <th>Record Sets</th>
+                                        <th>VNet Links</th>
+                                        <th>Subscription</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="privateDnsZonesTableBody">
+                                    <tr><td colspan="6">Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="subsection">
+                        <h3>Private Endpoints</h3>
+                        <div class="data-table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Resource Group</th>
+                                        <th>Location</th>
+                                        <th>VNet</th>
+                                        <th>Subnet</th>
+                                        <th>Private IP</th>
+                                        <th>Connected Resource</th>
+                                        <th>Subscription</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="privateEndpointsTableBody">
+                                    <tr><td colspan="8">Loading...</td></tr>
                                 </tbody>
                             </table>
                         </div>

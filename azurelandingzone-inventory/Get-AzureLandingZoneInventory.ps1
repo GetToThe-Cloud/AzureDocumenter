@@ -30,6 +30,8 @@ function Get-AzureLandingZoneInventory {
             expressRoutes = @()
             firewalls = @()
             networkSecurityGroups = @()
+            privateDnsZones = @()
+            privateEndpoints = @()
         }
         compute = @{
             virtualMachines = @()
@@ -52,6 +54,8 @@ function Get-AzureLandingZoneInventory {
             totalBudgets = 0
             totalLocks = 0
             totalVMs = 0
+            totalPrivateDnsZones = 0
+            totalPrivateEndpoints = 0
         }
         explanations = @{
             overview = @"
@@ -139,6 +143,17 @@ Security:
 • Application Security Groups: Group VMs by application role
 • Service Endpoints: Private connectivity to Azure services
 • Private Link: Private IP access to PaaS services
+
+Private Connectivity:
+• Private DNS Zones: DNS resolution for private endpoints and custom domains
+  - Integrated with VNets for automatic registration
+  - Support for Azure service-specific zones (privatelink.*)
+  - Centralized DNS management across landing zones
+• Private Endpoints: Private IP addresses for Azure PaaS services
+  - Eliminates exposure to public internet
+  - Traffic stays on Microsoft backbone network
+  - Integrates with Private DNS Zones for name resolution
+  - Supports blob storage, SQL databases, Key Vault, and more
 "@
             governance = @"
 Governance ensures consistent management, security, and compliance across all Azure resources.
@@ -546,6 +561,117 @@ Move Strategy:
                         } catch {}
                     }
                 } catch {}
+                
+                # Private DNS Zones
+                try {
+                    $privateDnsZones = Get-AzPrivateDnsZone -ErrorAction SilentlyContinue
+                    foreach ($zone in $privateDnsZones) {
+                        try {
+                            # Get virtual network links for this zone
+                            $vnetLinks = Get-AzPrivateDnsVirtualNetworkLink -ResourceGroupName $zone.ResourceGroupName -ZoneName $zone.Name -ErrorAction SilentlyContinue
+                            $linkedVNets = @()
+                            foreach ($link in $vnetLinks) {
+                                $vnetName = if ($link.VirtualNetwork.Id) { Split-Path $link.VirtualNetwork.Id -Leaf } else { 'N/A' }
+                                $linkedVNets += @{
+                                    linkName = $link.Name
+                                    vnetName = $vnetName
+                                    vnetId = $link.VirtualNetwork.Id
+                                    registrationEnabled = $link.RegistrationEnabled
+                                }
+                            }
+                            
+                            # Get record sets count
+                            $recordSets = Get-AzPrivateDnsRecordSet -ResourceGroupName $zone.ResourceGroupName -ZoneName $zone.Name -ErrorAction SilentlyContinue
+                            
+                            $inventory.networking.privateDnsZones += @{
+                                name = $zone.Name
+                                id = $zone.Id
+                                resourceGroup = $zone.ResourceGroupName
+                                location = $zone.Location
+                                numberOfRecordSets = $recordSets.Count
+                                numberOfVirtualNetworkLinks = $vnetLinks.Count
+                                virtualNetworkLinks = $linkedVNets
+                                tags = $zone.Tags
+                                subscription = $sub.Name
+                            }
+                        } catch {
+                            Write-Host "      ⚠️  Error processing Private DNS Zone: $($zone.Name)" -ForegroundColor Yellow
+                        }
+                    }
+                    $inventory.summary.totalPrivateDnsZones += $privateDnsZones.Count
+                } catch {
+                    Write-Host "      ⚠️  Error collecting Private DNS Zones" -ForegroundColor Yellow
+                }
+                
+                # Private Endpoints
+                try {
+                    $privateEndpoints = Get-AzPrivateEndpoint -ErrorAction SilentlyContinue
+                    foreach ($pe in $privateEndpoints) {
+                        try {
+                            # Get private link service connection details
+                            $connections = @()
+                            foreach ($conn in $pe.PrivateLinkServiceConnections) {
+                                $connections += @{
+                                    name = $conn.Name
+                                    privateLinkServiceId = $conn.PrivateLinkServiceId
+                                    groupIds = $conn.GroupIds
+                                    requestMessage = $conn.RequestMessage
+                                    status = $conn.PrivateLinkServiceConnectionState.Status
+                                }
+                            }
+                            
+                            # Get subnet and VNet info
+                            $subnetId = if ($pe.Subnet.Id) { $pe.Subnet.Id } else { $null }
+                            $vnetName = if ($subnetId) { ($subnetId -split '/subnets/')[0] | Split-Path -Leaf } else { 'N/A' }
+                            $subnetName = if ($subnetId) { Split-Path $subnetId -Leaf } else { 'N/A' }
+                            
+                            # Get private IP addresses
+                            $privateIPs = @()
+                            foreach ($ipConfig in $pe.NetworkInterfaces) {
+                                if ($ipConfig.Id) {
+                                    try {
+                                        $nicRG = ($ipConfig.Id -split '/')[4]
+                                        $nicName = Split-Path $ipConfig.Id -Leaf
+                                        $nic = Get-AzNetworkInterface -ResourceGroupName $nicRG -Name $nicName -ErrorAction SilentlyContinue
+                                        if ($nic) {
+                                            foreach ($ip in $nic.IpConfigurations) {
+                                                if ($ip.PrivateIpAddress) {
+                                                    $privateIPs += $ip.PrivateIpAddress
+                                                }
+                                            }
+                                        }
+                                    } catch {}
+                                }
+                            }
+                            
+                            # Get connected resource name from the first connection
+                            $connectedResource = 'N/A'
+                            if ($connections.Count -gt 0 -and $connections[0].privateLinkServiceId) {
+                                $connectedResource = Split-Path $connections[0].privateLinkServiceId -Leaf
+                            }
+                            
+                            $inventory.networking.privateEndpoints += @{
+                                name = $pe.Name
+                                id = $pe.Id
+                                resourceGroup = $pe.ResourceGroupName
+                                location = $pe.Location
+                                vnet = $vnetName
+                                subnet = $subnetName
+                                privateIPs = $privateIPs
+                                connections = $connections
+                                connectedResource = $connectedResource
+                                provisioningState = $pe.ProvisioningState
+                                tags = $pe.Tag
+                                subscription = $sub.Name
+                            }
+                        } catch {
+                            Write-Host "      ⚠️  Error processing Private Endpoint: $($pe.Name)" -ForegroundColor Yellow
+                        }
+                    }
+                    $inventory.summary.totalPrivateEndpoints += $privateEndpoints.Count
+                } catch {
+                    Write-Host "      ⚠️  Error collecting Private Endpoints" -ForegroundColor Yellow
+                }
                 
             } catch {
                 Write-Host "      ⚠️  Error collecting network resources in sub: $($sub.Name)" -ForegroundColor Yellow
