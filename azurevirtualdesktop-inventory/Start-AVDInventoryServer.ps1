@@ -178,6 +178,7 @@ try {
             }
             
             '^/api/inventory/data$' {
+                Write-Host "  🔍 Inventory data endpoint hit. Auth status: $($script:IsAuthenticated)" -ForegroundColor Yellow
                 if ($script:IsAuthenticated) {
                     try {
                         Write-Host "  📊 Collecting AVD inventory..." -ForegroundColor Cyan
