@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JavaScript Test</title>
+</head>
+<body>
+    <h1>JavaScript Test Page</h1>
+    <div id="status">Checking...</div>
+    <button onclick="testAuth()">Test Auth</button>
+    <div id="console" style="background: #f0f0f0; padding: 20px; margin-top: 20px; font-family: monospace;"></div>
+
+    <script>
+        const consoleDiv = document.getElementById('console');
+        const statusDiv = document.getElementById('status');
+        
+        function log(msg) {
+            console.log(msg);
+            consoleDiv.innerHTML += msg + '<br>';
+        }
+        
+        log('✅ JavaScript is running');
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            log('✅ DOMContentLoaded fired');
+            statusDiv.textContent = 'JavaScript is working!';
+            testAuth();
+        });
+        
+        async function testAuth() {
+            log('🔄 Testing /api/auth/status...');
+            try {
+                const response = await fetch('/api/auth/status');
+                log(`📥 Response status: ${response.status}`);
+                const data = await response.json();
+                log(`📦 Response data: ${JSON.stringify(data, null, 2)}`);
+            } catch (error) {
+                log(`❌ Error: ${error.message}`);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -90,6 +90,16 @@ try {
                 }
             }
             
+            '^/test\.html$' {
+                # Serve test page
+                $testPath = Join-Path $PSScriptRoot "test.html"
+                if (Test-Path $testPath) {
+                    $content = Get-Content $testPath -Raw
+                } else {
+                    $content = "<html><body><h1>Test Page Not Found</h1></body></html>"
+                }
+            }
+            
             '^/styles\.css$' {
                 $cssPath = Join-Path $PSScriptRoot "styles.css"
                 if (Test-Path $cssPath) {
