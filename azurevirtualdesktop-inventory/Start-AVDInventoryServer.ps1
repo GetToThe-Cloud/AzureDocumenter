@@ -35,13 +35,16 @@ $inventoryModulePath = Join-Path $PSScriptRoot "Get-AVDInventory.ps1"
 # Check Azure connection
 function Test-AzureConnection {
     try {
-        $context = Get-AzContext
+        $context = Get-AzContext -ErrorAction SilentlyContinue
         if ($null -eq $context) {
+            Write-Host "    ℹ️  No Azure context found" -ForegroundColor Gray
             return $false
         }
+        Write-Host "    ✅ Azure context found: $($context.Account.Id)" -ForegroundColor Gray
         return $true
     }
     catch {
+        Write-Host "    ❌ Error checking Azure connection: $($_.Exception.Message)" -ForegroundColor Red
         return $false
     }
 }
@@ -74,12 +77,13 @@ try {
         
         Write-Host "$(Get-Date -Format 'HH:mm:ss') $method $path" -ForegroundColor Gray
         
-        # Content type and response
-        $content = ""
-        $contentType = "text/html; charset=utf-8"
-        
-        # Route handling
-        switch -Regex ($path) {
+        try {
+            # Content type and response
+            $content = ""
+            $contentType = "text/html; charset=utf-8"
+            
+            # Route handling
+            switch -Regex ($path) {
             '^/$' {
                 # Serve main page
                 $indexPath = Join-Path $PSScriptRoot "index.html"
@@ -123,20 +127,27 @@ try {
             }
             
             '^/api/auth/status$' {
-                $script:IsAuthenticated = Test-AzureConnection
-                $authStatus = @{
-                    authenticated = $script:IsAuthenticated
-                    context = if ($script:IsAuthenticated) {
-                        $ctx = Get-AzContext
-                        @{
-                            account = $ctx.Account.Id
-                            subscription = $ctx.Subscription.Name
-                            tenant = $ctx.Tenant.Id
-                        }
-                    } else { $null }
+                try {
+                    $script:IsAuthenticated = Test-AzureConnection
+                    $authStatus = @{
+                        authenticated = $script:IsAuthenticated
+                        context = if ($script:IsAuthenticated) {
+                            $ctx = Get-AzContext
+                            @{
+                                account = $ctx.Account.Id
+                                subscription = $ctx.Subscription.Name
+                                tenant = $ctx.Tenant.Id
+                            }
+                        } else { $null }
+                    }
+                    $content = $authStatus | ConvertTo-Json
+                    $contentType = "application/json"
+                    Write-Host "  ✅ Auth status returned: authenticated=$($script:IsAuthenticated)" -ForegroundColor Green
+                } catch {
+                    Write-Host "  ❌ Error in auth/status: $($_.Exception.Message)" -ForegroundColor Red
+                    $content = @{ authenticated = $false; error = $_.Exception.Message } | ConvertTo-Json
+                    $contentType = "application/json"
                 }
-                $content = $authStatus | ConvertTo-Json
-                $contentType = "application/json"
             }
             
             '^/api/auth/login$' {
@@ -232,6 +243,25 @@ try {
         $response.ContentType = $contentType
         $response.OutputStream.Write($buffer, 0, $buffer.Length)
         $response.OutputStream.Close()
+        
+        } catch {
+            Write-Host "  ❌ Error handling request: $($_.Exception.Message)" -ForegroundColor Red
+            Write-Host "  📍 Stack: $($_.ScriptStackTrace)" -ForegroundColor Red
+            
+            # Try to send error response
+            try {
+                $errorContent = @{ error = $_.Exception.Message } | ConvertTo-Json
+                $errorBuffer = [System.Text.Encoding]::UTF8.GetBytes($errorContent)
+                $response.StatusCode = 500
+                $response.ContentType = "application/json"
+                $response.ContentLength64 = $errorBuffer.Length
+                $response.OutputStream.Write($errorBuffer, 0, $errorBuffer.Length)
+                $response.OutputStream.Close()
+            } catch {
+                # If even error response fails, just close
+                try { $response.OutputStream.Close() } catch {}
+            }
+        }
     }
 }
 finally {
