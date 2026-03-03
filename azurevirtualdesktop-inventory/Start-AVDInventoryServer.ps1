@@ -106,6 +106,12 @@ try {
                 }
             }
             
+            '^/favicon\.ico$' {
+                # Return empty response for favicon to prevent 404 errors
+                $response.StatusCode = 204
+                $content = ""
+            }
+            
             '^/api/auth/status$' {
                 $script:IsAuthenticated = Test-AzureConnection
                 $authStatus = @{
@@ -138,13 +144,25 @@ try {
                 if ($script:IsAuthenticated) {
                     try {
                         Write-Host "  📊 Collecting AVD inventory..." -ForegroundColor Cyan
+                        Write-Host "  ⏱️  Start time: $(Get-Date -Format 'HH:mm:ss')" -ForegroundColor Gray
+                        
                         $script:InventoryData = Get-AVDInventoryData
+                        
+                        Write-Host "  ✅ Inventory collection complete" -ForegroundColor Green
+                        Write-Host "  ⏱️  End time: $(Get-Date -Format 'HH:mm:ss')" -ForegroundColor Gray
+                        
                         $script:LastUpdate = Get-Date
-                        $content = $script:InventoryData | ConvertTo-Json -Depth 10
+                        
+                        Write-Host "  📦 Converting to JSON..." -ForegroundColor Gray
+                        $content = $script:InventoryData | ConvertTo-Json -Depth 20 -Compress:$false
+                        Write-Host "  ✅ JSON conversion complete ($(($content.Length / 1KB).ToString('N2')) KB)" -ForegroundColor Green
                     } catch {
-                        $content = @{ error = $_.Exception.Message } | ConvertTo-Json
+                        Write-Host "  ❌ Error collecting inventory: $($_.Exception.Message)" -ForegroundColor Red
+                        Write-Host "  📍 Stack trace: $($_.ScriptStackTrace)" -ForegroundColor Red
+                        $content = @{ error = $_.Exception.Message; details = $_.ScriptStackTrace } | ConvertTo-Json
                     }
                 } else {
+                    Write-Host "  ⚠️  Request rejected - not authenticated" -ForegroundColor Yellow
                     $response.StatusCode = 401
                     $content = @{ error = "Not authenticated" } | ConvertTo-Json
                 }
@@ -155,13 +173,22 @@ try {
                 if ($script:IsAuthenticated) {
                     try {
                         Write-Host "  🔄 Refreshing AVD inventory..." -ForegroundColor Cyan
+                        Write-Host "  ⏱️  Start time: $(Get-Date -Format 'HH:mm:ss')" -ForegroundColor Gray
+                        
                         $script:InventoryData = Get-AVDInventoryData
+                        
+                        Write-Host "  ✅ Inventory refresh complete" -ForegroundColor Green
+                        Write-Host "  ⏱️  End time: $(Get-Date -Format 'HH:mm:ss')" -ForegroundColor Gray
+                        
                         $script:LastUpdate = Get-Date
                         $content = @{ success = $true; lastUpdate = $script:LastUpdate.ToString('o') } | ConvertTo-Json
                     } catch {
-                        $content = @{ success = $false; error = $_.Exception.Message } | ConvertTo-Json
+                        Write-Host "  ❌ Error refreshing inventory: $($_.Exception.Message)" -ForegroundColor Red
+                        Write-Host "  📍 Stack trace: $($_.ScriptStackTrace)" -ForegroundColor Red
+                        $content = @{ success = $false; error = $_.Exception.Message; details = $_.ScriptStackTrace } | ConvertTo-Json
                     }
                 } else {
+                    Write-Host "  ⚠️  Request rejected - not authenticated" -ForegroundColor Yellow
                     $response.StatusCode = 401
                     $content = @{ error = "Not authenticated" } | ConvertTo-Json
                 }

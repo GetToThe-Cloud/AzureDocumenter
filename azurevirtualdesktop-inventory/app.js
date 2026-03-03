@@ -14,31 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // Check authentication status
 async function checkAuthStatus() {
     try {
-        const response = await fetch('/api/auth/status');
-        const data = await response.json();
-        
-        const authStatusDiv = document.getElementById('authStatus');
-        
-        if (data.authenticated) {
-            authStatusDiv.className = 'auth-status authenticated';
-            authStatusDiv.innerHTML = `✓ Connected to Azure as <strong>${data.context.account}</strong> | Subscription: <strong>${data.context.subscription}</strong>`;
-            
-            document.getElementById('authRequired').style.display = 'none';
-            await loadInventoryData();
-        } else {
-            authStatusDiv.className = 'auth-status not-authenticated';
-            authStatusDiv.innerHTML = '⚠ Not authenticated with Azure. Initiating login...';
-            
-            // Show authentication required UI
-            document.getElementById('authRequired').style.display = 'flex';
-            
-            // Automatically request Azure login
-            await requestAzureLogin();
-        }
-    } catch (error) {
-        console.error('Error checking auth status:', error);
-    }
-}
+        console.log('🔐 Checking Azure authentication status...');\n        const response = await fetch('/api/auth/status');\n        const data = await response.json();\n        \n        console.log('📡 Auth status response:', data);\n        \n        const authStatusDiv = document.getElementById('authStatus');\n        \n        if (data.authenticated) {\n            console.log('✅ Authenticated as:', data.context.account);\n            authStatusDiv.className = 'auth-status authenticated';\n            authStatusDiv.innerHTML = `✓ Connected to Azure as <strong>${data.context.account}</strong> | Subscription: <strong>${data.context.subscription}</strong>`;\n            \n            document.getElementById('authRequired').style.display = 'none';\n            await loadInventoryData();\n        } else {\n            console.log('⚠️ Not authenticated - requesting login');\n            authStatusDiv.className = 'auth-status not-authenticated';\n            authStatusDiv.innerHTML = '⚠ Not authenticated with Azure. Initiating login...';\n            \n            // Show authentication required UI\n            document.getElementById('authRequired').style.display = 'flex';\n            \n            // Automatically request Azure login\n            await requestAzureLogin();\n        }\n    } catch (error) {\n        console.error('❌ Error checking auth status:', error);\n    }\n}
 
 // Request Azure login (with rate limiting to prevent multiple simultaneous requests)
 let loginInProgress = false;
@@ -81,22 +57,45 @@ async function authenticateAzure() {
 // Load inventory data
 async function loadInventoryData() {
     try {
-        showLoading();
-        const response = await fetch('/api/inventory/data');
+        console.log('🔄 Starting inventory data load...');
+        showLoading('Connecting to Azure API...');
+        
+        console.log('📡 Fetching inventory data from /api/inventory/data');
+        updateLoadingProgress('Collecting Azure resources...', 20);
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
+        
+        const response = await fetch('/api/inventory/data', {
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        
+        console.log(`📥 Received response with status: ${response.status}`);
         
         if (response.status === 401) {
+            console.warn('⚠️ Unauthorized - Authentication required');
+            hideLoading();
             await checkAuthStatus();
             return;
         }
         
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        updateLoadingProgress('Parsing inventory data...', 60);
         inventoryData = await response.json();
+        console.log('✅ Inventory data parsed successfully', inventoryData);
         
         if (inventoryData.error) {
-            console.error('Error loading inventory:', inventoryData.error);
+            console.error('❌ Error in inventory data:', inventoryData.error);
             alert('Error loading inventory: ' + inventoryData.error);
+            hideLoading();
             return;
         }
         
+        updateLoadingProgress('Rendering dashboard...', 80);
         updateLastUpdateTime();
         
         // Render explanations
@@ -109,6 +108,7 @@ async function loadInventoryData() {
             document.getElementById('galleriesExplanation').textContent = inventoryData.explanation.computeGalleries || '';
         }
         
+        console.log('🎨 Rendering UI components...');
         renderOverview();
         renderHostPools();
         renderSessionHosts();
@@ -118,29 +118,27 @@ async function loadInventoryData() {
         renderVNets();
         renderComputeGalleries();
         
+        updateLoadingProgress('Complete!', 100);
+        console.log('✅ Inventory dashboard loaded successfully');
+        
     } catch (error) {
-        console.error('Error loading inventory data:', error);
+        if (error.name === 'AbortError') {
+            console.error('❌ Request timed out after 2 minutes');
+            alert('Request timed out. The inventory collection is taking longer than expected. Please check the server console and try again.');
+        } else {
+            console.error('❌ Error loading inventory data:', error);
+            alert('Error loading inventory: ' + error.message + '. Check the browser console for details.');
+        }
     } finally {
-        hideLoading();
+        setTimeout(() => hideLoading(), 500); // Small delay to show completion
     }
 }
 
 // Refresh inventory
 async function refreshInventory() {
     try {
-        showLoading();
-        const response = await fetch('/api/inventory/refresh', { method: 'POST' });
-        const data = await response.json();
-        
-        if (data.success) {
-            await loadInventoryData();
-        }
-    } catch (error) {
-        console.error('Error refreshing inventory:', error);
-    } finally {
-        hideLoading();
-    }
-}
+        console.log('🔄 Manually refreshing inventory...');
+        showLoading('Refreshing inventory...');\n        updateLoadingProgress('Requesting fresh data from Azure...', 30);\n        \n        const response = await fetch('/api/inventory/refresh', { method: 'POST' });\n        const data = await response.json();\n        \n        console.log('📥 Refresh response:', data);\n        \n        if (data.success) {\n            updateLoadingProgress('Loading updated inventory...', 60);\n            await loadInventoryData();\n        } else {\n            console.error('❌ Refresh failed:', data.error);\n            alert('Failed to refresh inventory: ' + (data.error || 'Unknown error'));\n        }\n    } catch (error) {\n        console.error('❌ Error refreshing inventory:', error);\n        alert('Error refreshing inventory: ' + error.message);\n    } finally {\n        hideLoading();\n    }\n}
 
 // Update last update time
 function updateLastUpdateTime() {
@@ -2573,8 +2571,25 @@ async function exportToPDF() {
 }
 
 // Show/hide loading overlay
-function showLoading() {
-    document.getElementById('loadingOverlay').style.display = 'flex';
+function showLoading(message = 'Loading inventory data...') {
+    const overlay = document.getElementById('loadingOverlay');
+    const statusText = document.getElementById('loadingStatus');
+    const progressBar = document.getElementById('loadingProgress');
+    const progressFill = document.getElementById('loadingProgressFill');
+    
+    if (statusText) statusText.textContent = message;
+    if (progressBar) progressBar.style.display = 'block';
+    if (progressFill) progressFill.style.width = '0%';
+    
+    overlay.style.display = 'flex';
+}
+
+function updateLoadingProgress(message, percent) {
+    const statusText = document.getElementById('loadingStatus');
+    const progressFill = document.getElementById('loadingProgressFill');
+    
+    if (statusText) statusText.textContent = message;
+    if (progressFill) progressFill.style.width = percent + '%';
 }
 
 function hideLoading() {
