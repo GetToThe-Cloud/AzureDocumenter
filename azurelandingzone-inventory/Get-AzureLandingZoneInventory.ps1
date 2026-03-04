@@ -6,13 +6,17 @@
     management groups, policies, subscriptions, networking, and governance settings.
 #>
 
+# Script version
+$script:Version = "1.0.0"
+
 function Get-AzureLandingZoneInventory {
     [CmdletBinding()]
     param()
     
-    Write-Host "    ○ Gathering Azure Landing Zone inventory..." -ForegroundColor Gray
+    Write-Host "    ○ Gathering Azure Landing Zone inventory (v$script:Version)..." -ForegroundColor Gray
     
     $inventory = @{
+        version = $script:Version
         collectionTime = (Get-Date).ToString('o')
         tenantId = (Get-AzContext).Tenant.Id
         managementGroups = @()

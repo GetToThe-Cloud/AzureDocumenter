@@ -1,6 +1,7 @@
 // Azure Virtual Desktop Inventory - Client Application
 
-console.log('🚀 AVD Inventory app.js loaded - Version 2.0');
+const APP_VERSION = '1.0.0';
+console.log(`🚀 AVD Inventory app.js loaded - Version ${APP_VERSION}`);
 
 let inventoryData = null;
 let diagramData = null;
@@ -9,6 +10,11 @@ let network = null;
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
     console.log('📄 DOM Content Loaded - Initializing app...');
+    // Display version number in footer
+    const versionElement = document.getElementById('appVersion');
+    if (versionElement) {
+        versionElement.textContent = `Version: ${APP_VERSION}`;
+    }
     checkAuthStatus();
     // Auto-refresh disabled - use manual refresh button to reload inventory
 });
@@ -1636,6 +1642,12 @@ async function exportToPDF() {
         pdf.setTextColor(0, 0, 0);
         pdf.setFont(undefined, 'normal');
         pdf.text(`Generated: ${new Date().toLocaleString()}`, margin, yPos);
+        yPos += 7;
+        pdf.setFontSize(10);
+        pdf.setTextColor(100, 100, 100);
+        pdf.text(`Report Version: ${APP_VERSION}`, margin, yPos);
+        pdf.setTextColor(0, 0, 0);
+        pdf.setFontSize(12);
         yPos += 10;
         
         if (inventoryData && inventoryData.subscriptions.length > 0) {

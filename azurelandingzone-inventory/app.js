@@ -1,9 +1,11 @@
 // Global state
 let inventoryData = null;
 let isAuthenticated = false;
+const APP_VERSION = "1.0.0";
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
+    console.log(`🏢 Azure Landing Zone Inventory v${APP_VERSION}`);
     checkAuthStatus();
 });
 
@@ -111,7 +113,9 @@ async function loadInventory() {
             return;
         }
         
+        console.log(`📊 Inventory loaded - Data version: ${inventoryData.version || 'unknown'}, App version: ${APP_VERSION}`);
         updateLastUpdate();
+        updateVersionInfo();
         populateUI();
         hideAuthRequired();
     } catch (error) {
@@ -145,6 +149,15 @@ function updateLastUpdate() {
         const date = new Date(inventoryData.collectionTime);
         document.getElementById('lastUpdate').textContent = 
             `Last updated: ${date.toLocaleString()}`;
+    }
+}
+
+// Update version information
+function updateVersionInfo() {
+    const versionElement = document.getElementById('versionInfo');
+    if (versionElement) {
+        const dataVersion = inventoryData?.version || 'unknown';
+        versionElement.textContent = `v${APP_VERSION} (data: v${dataVersion})`;
     }
 }
 
@@ -894,6 +907,8 @@ async function exportToPDF() {
         pdf.setFont(undefined, 'normal');
         pdf.setTextColor(0, 0, 0);
         pdf.text(`Generated: ${new Date().toLocaleString()}`, margin, yPos);
+        yPos += 8;
+        pdf.text(`Version: ${inventoryData.version || 'unknown'} (App: ${APP_VERSION})`, margin, yPos);
         yPos += 8;
         pdf.text(`Tenant ID: ${inventoryData.tenantId || 'N/A'}`, margin, yPos);
         yPos += 8;
