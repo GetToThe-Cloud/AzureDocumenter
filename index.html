@@ -963,6 +963,29 @@ body {
                     </div>
                 </div>
 
+                <!-- Azure Local Tool -->
+                <div class="tool-card" data-modal="azure-local-modal">
+                    <div class="tool-icon">🏢</div>
+                    <span class="tool-status">✓ Available</span>
+                    <h3 class="tool-title">Azure Local Documenter</h3>
+                    <p class="tool-description">
+                        Comprehensive inventory tool for Azure Local (Azure Stack HCI) environments. 
+                        Scans clusters, nodes, virtual machines, networks, storage, and Arc-enabled 
+                        services to generate detailed infrastructure documentation.
+                    </p>
+                    <ul class="tool-features">
+                        <li>Cluster configurations & health</li>
+                        <li>Node hardware specifications</li>
+                        <li>Virtual Machine inventory</li>
+                        <li>Logical Networks & Storage Paths</li>
+                        <li>Azure Arc integration & licensing</li>
+                        <li>Cost analysis & Azure Hybrid Benefit</li>
+                    </ul>
+                    <div class="tool-link" onclick="event.stopPropagation(); openModal('azure-local-modal')">
+                        Click for Details
+                    </div>
+                </div>
+
                 <!-- Add More Tools Card
                 <div class="add-tool-card">
                     <div class="add-icon">➕</div>
@@ -1184,6 +1207,87 @@ body {
                 <a href="https://www.gettothe.cloud" 
                    target="_blank" rel="noopener noreferrer" class="modal-btn modal-btn-secondary"
                    aria-label="Read AVD documentation">
+                    📖 Documentation
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Azure Local Documenter -->
+    <div id="azure-local-modal" class="modal-overlay" data-modal-overlay="true">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div class="modal-close" data-close-modal="azure-local-modal">×</div>
+                <div class="modal-icon">🏢</div>
+                <h2 class="modal-title">Azure Local Documenter</h2>
+                <span class="modal-status">✓ Available Now</span>
+            </div>
+            <div class="modal-body">
+                <p class="modal-description">
+                    The Azure Local Documenter provides comprehensive documentation for Azure Local (Azure Stack HCI) 
+                    infrastructure. It automatically inventories clusters, nodes, virtual machines, networking, storage, 
+                    and Arc-enabled services, generating detailed reports with cost analysis and compliance insights.
+                </p>
+
+                <div class="modal-highlight">
+                    <p><strong>🎯 Perfect for:</strong> Infrastructure administrators, hybrid cloud engineers, and IT teams 
+                    managing Azure Local deployments who need to track hardware specs, monitor cluster health, document 
+                    licensing compliance, or optimize costs with Azure Hybrid Benefit analysis.</p>
+                </div>
+
+                <h3 class="modal-section-title">📋 What Gets Documented</h3>
+                <ul class="modal-features">
+                    <li><strong>Clusters:</strong> Cluster configurations, resource groups, locations, and node counts</li>
+                    <li><strong>Nodes:</strong> Hardware specifications (manufacturer, model, cores, memory), agent versions, and solution versions</li>
+                    <li><strong>Virtual Machines:</strong> VM inventory with CPU, memory, power states, and cluster/node assignments</li>
+                    <li><strong>Logical Networks:</strong> Network configurations, subnets, VM switches, and VLAN settings</li>
+                    <li><strong>Storage Paths:</strong> Storage path inventory and provisioning states</li>
+                    <li><strong>Arc Services:</strong> Custom locations, Arc Resource Bridges, and Arc Gateways</li>
+                    <li><strong>Images:</strong> Available marketplace and custom images with OS types and versions</li>
+                    <li><strong>Licensing:</strong> Arc machine licenses, ESU profiles, and Azure Hybrid Benefit status</li>
+                </ul>
+
+                <h3 class="modal-section-title">🚀 Key Features</h3>
+                <ul class="modal-features">
+                    <li>Automatic module installation and updates (Az.StackHCI, Az.ConnectedMachine, Az.ArcGateway)</li>
+                    <li>Hardware inventory with manufacturer/model/serial numbers</li>
+                    <li>Workload tracking (VMs and Kubernetes clusters per node)</li>
+                    <li>Node extensions modal showing all installed Arc extensions</li>
+                    <li>Cost analysis with Azure Hybrid Benefit detection</li>
+                    <li>Monthly and yearly cost projections ($10/core/month standard pricing)</li>
+                    <li>Well-Architected Framework (WAF) assessment</li>
+                    <li>Interactive HTML reports with search and filtering</li>
+                    <li>Export to PDF with complete infrastructure documentation</li>
+                </ul>
+
+                <h3 class="modal-section-title">💰 Cost Optimization</h3>
+                <ul class="modal-features">
+                    <li>Azure Hybrid Benefit detection from Windows Server licenses</li>
+                    <li>Per-core cost calculation based on official Azure Local pricing</li>
+                    <li>Savings analysis showing potential cost reductions</li>
+                    <li>Node-level breakdown showing which machines have Hybrid Benefit enabled</li>
+                    <li>FREE licensing for cores with Azure Hybrid Benefit (vs $10/core/month)</li>
+                </ul>
+
+                <h3 class="modal-section-title">🔧 Technology Stack</h3>
+                <div class="modal-tech-stack">
+                    <span class="modal-tech-badge">PowerShell 7+</span>
+                    <span class="modal-tech-badge">Az.StackHCI</span>
+                    <span class="modal-tech-badge">Az.ConnectedMachine</span>
+                    <span class="modal-tech-badge">Az.ArcGateway</span>
+                    <span class="modal-tech-badge">HTML5/JavaScript</span>
+                    <span class="modal-tech-badge">Local Web Server</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <a href="https://github.com/GetToThe-Cloud/AzureDocumenter/tree/main/azurelocal-inventory" 
+                   target="_blank" rel="noopener noreferrer" class="modal-btn modal-btn-primary"
+                   aria-label="View Azure Local Documenter on GitHub">
+                    📦 View on GitHub
+                </a>
+                <a href="https://www.gettothe.cloud" 
+                   target="_blank" rel="noopener noreferrer" class="modal-btn modal-btn-secondary"
+                   aria-label="Read Azure Local documentation">
                     📖 Documentation
                 </a>
             </div>
