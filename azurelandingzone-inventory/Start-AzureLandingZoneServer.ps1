@@ -159,7 +159,7 @@ try {
                         Write-Host "  📊 Collecting Azure Landing Zone inventory..." -ForegroundColor Cyan
                         $script:InventoryData = Get-AzureLandingZoneInventory
                         $script:LastUpdate = Get-Date
-                        $content = $script:InventoryData | ConvertTo-Json -Depth 10
+                        $content = $script:InventoryData | ConvertTo-Json -Depth 20
                     } catch {
                         $content = @{ error = $_.Exception.Message } | ConvertTo-Json
                     }

@@ -255,6 +255,7 @@ Move Strategy:
                     Write-Host "      ⚠️  Could not get details for MG: $($mg.Name)" -ForegroundColor Yellow
                 }
             }
+            Write-Host "      ✓ Collected $($inventory.summary.totalManagementGroups) management groups" -ForegroundColor Green
         } catch {
             Write-Host "      ⚠️  Limited access to Management Groups" -ForegroundColor Yellow
         }
@@ -290,6 +291,7 @@ Move Strategy:
                 Write-Host "      ⚠️  Could not access subscription: $($sub.Name)" -ForegroundColor Yellow
             }
         }
+        Write-Host "      ✓ Collected $($inventory.summary.totalSubscriptions) subscriptions" -ForegroundColor Green
         
         # Get Policy Definitions
         Write-Host "    ○ Collecting Policy Definitions..." -ForegroundColor Gray
