@@ -1038,9 +1038,10 @@ async function exportToPDF() {
         addBullet(`Virtual Networks: ${summary.totalVNets || 0}`);
         addBullet(`VNet Peerings: ${summary.totalPeerings || 0}`);
         addBullet(`Virtual WANs: ${summary.totalVirtualWans || 0}`);
+        addBullet(`VPN Gateways: ${inventoryData.networking?.vpnGateways?.length || 0}`);
+        addBullet(`ExpressRoute Circuits: ${inventoryData.networking?.expressRoutes?.length || 0}`);
         addBullet(`Azure Firewalls: ${summary.totalFirewalls || 0}`);
         addBullet(`Firewall Policies: ${summary.totalFirewallPolicies || 0}`);
-        addBullet(`VPN Gateways: ${inventoryData.networking?.vpnGateways?.length || 0}`);
         addBullet(`Network Security Groups: ${inventoryData.networking?.networkSecurityGroups?.length || 0}`);
         addBullet(`Private DNS Zones: ${summary.totalPrivateDnsZones || 0}`);
         addBullet(`Private Endpoints: ${summary.totalPrivateEndpoints || 0}`);
@@ -1560,14 +1561,88 @@ async function exportToPDF() {
                 yPos += 5;
             }
             
-            // Virtual WAN Check
+            // Virtual WAN Table
             if (inventoryData.networking?.virtualWans && inventoryData.networking.virtualWans.length > 0) {
-                addSubSection(`Virtual WAN Detected (${inventoryData.networking.virtualWans.length})`);
-                inventoryData.networking.virtualWans.forEach(vwan => {
-                    addBullet(`${vwan.name} - ${vwan.virtualHubCount || 0} virtual hubs`);
-                    addBullet(`Branch-to-Branch: ${vwan.allowBranchToBranchTraffic ? 'Enabled' : 'Disabled'}`, 5);
-                    addBullet(`VNet-to-VNet: ${vwan.allowVnetToVnetTraffic ? 'Enabled' : 'Disabled'}`, 5);
-                });
+                if (yPos > pageHeight - 40) {
+                    pdf.addPage();
+                    yPos = 20;
+                }
+                
+                addSubSection(`Virtual WANs (${inventoryData.networking.virtualWans.length})`);
+                yPos += 2;
+                
+                const vwanRows = inventoryData.networking.virtualWans.map(vwan => [
+                    vwan.name || 'N/A',
+                    vwan.location || 'N/A',
+                    vwan.virtualHubCount || 0,
+                    vwan.allowBranchToBranchTraffic ? 'Yes' : 'No',
+                    vwan.allowVnetToVnetTraffic ? 'Yes' : 'No',
+                    vwan.disableVpnEncryption ? 'Yes' : 'No',
+                    vwan.subscription || 'N/A'
+                ]);
+                
+                addTable(
+                    ['Name', 'Location', 'Hubs', 'Branch-to-Branch', 'VNet-to-VNet', 'VPN Encryption', 'Subscription'],
+                    vwanRows,
+                    [30, 20, 12, 22, 20, 22, 34]
+                );
+                yPos += 5;
+            }
+            
+            // VPN Gateways Table
+            if (inventoryData.networking?.vpnGateways && inventoryData.networking.vpnGateways.length > 0) {
+                if (yPos > pageHeight - 40) {
+                    pdf.addPage();
+                    yPos = 20;
+                }
+                
+                addSubSection(`VPN Gateways (${inventoryData.networking.vpnGateways.length})`);
+                yPos += 2;
+                
+                const vpnRows = inventoryData.networking.vpnGateways.map(vpn => [
+                    vpn.name || 'N/A',
+                    vpn.location || 'N/A',
+                    vpn.gatewayType || 'N/A',
+                    vpn.sku || 'N/A',
+                    vpn.vpnType || 'N/A',
+                    vpn.activeActive ? 'Yes' : 'No',
+                    vpn.enableBgp ? 'Yes' : 'No',
+                    vpn.subscription || 'N/A'
+                ]);
+                
+                addTable(
+                    ['Name', 'Location', 'Type', 'SKU', 'VPN Type', 'Active-Active', 'BGP', 'Subscription'],
+                    vpnRows,
+                    [28, 20, 15, 18, 18, 20, 15, 26]
+                );
+                yPos += 5;
+            }
+            
+            // ExpressRoute Circuits Table
+            if (inventoryData.networking?.expressRoutes && inventoryData.networking.expressRoutes.length > 0) {
+                if (yPos > pageHeight - 40) {
+                    pdf.addPage();
+                    yPos = 20;
+                }
+                
+                addSubSection(`ExpressRoute Circuits (${inventoryData.networking.expressRoutes.length})`);
+                yPos += 2;
+                
+                const erRows = inventoryData.networking.expressRoutes.map(er => [
+                    er.name || 'N/A',
+                    er.location || 'N/A',
+                    er.serviceProviderName || 'N/A',
+                    er.peeringLocation || 'N/A',
+                    er.bandwidthInMbps || 'N/A',
+                    er.circuitProvisioningState || 'N/A',
+                    er.subscription || 'N/A'
+                ]);
+                
+                addTable(
+                    ['Circuit Name', 'Location', 'Provider', 'Peering Location', 'Bandwidth', 'State', 'Subscription'],
+                    erRows,
+                    [30, 18, 28, 25, 18, 20, 31]
+                );
                 yPos += 5;
             }
             
@@ -1680,13 +1755,11 @@ async function exportToPDF() {
             
             // Network Security Summary
             if (inventoryData.networking?.networkSecurityGroups?.length > 0 || 
-                inventoryData.networking?.vpnGateways?.length > 0) {
-                addSubSection('Additional Network Security Components');
+                inventoryData.networking?.privateDnsZones?.length > 0 ||
+                inventoryData.networking?.privateEndpoints?.length > 0) {
+                addSubSection('Additional Network Components');
                 if (inventoryData.networking.networkSecurityGroups?.length > 0) {
                     addBullet(`Network Security Groups: ${inventoryData.networking.networkSecurityGroups.length}`);
-                }
-                if (inventoryData.networking.vpnGateways?.length > 0) {
-                    addBullet(`VPN Gateways: ${inventoryData.networking.vpnGateways.length}`);
                 }
                 if (inventoryData.networking.privateDnsZones?.length > 0) {
                     addBullet(`Private DNS Zones: ${inventoryData.networking.privateDnsZones.length}`);
