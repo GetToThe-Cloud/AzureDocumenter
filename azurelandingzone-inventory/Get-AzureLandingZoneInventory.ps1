@@ -7,6 +7,7 @@
     management groups, policies, subscriptions, networking, and governance settings.
 .NOTES
     Requires PowerShell 7.0 or higher
+    Required Modules: Az.Accounts, Az.Resources, Az.Network, Az.PolicyInsights
 #>
 
 # Script version
@@ -15,6 +16,22 @@ $script:Version = "1.0.0"
 function Get-AzureLandingZoneInventory {
     [CmdletBinding()]
     param()
+    
+    # Verify required modules are loaded
+    $requiredModules = @('Az.Accounts', 'Az.Resources', 'Az.Network', 'Az.PolicyInsights')
+    $missingModules = @()
+    
+    foreach ($module in $requiredModules) {
+        if (-not (Get-Module -Name $module)) {
+            $missingModules += $module
+        }
+    }
+    
+    if ($missingModules.Count -gt 0) {
+        Write-Host "❌ ERROR: Required modules not loaded: $($missingModules -join ', ')" -ForegroundColor Red
+        Write-Host "Please import the required modules before running this function." -ForegroundColor Yellow
+        throw "Required modules not loaded: $($missingModules -join ', ')"
+    }
     
     Write-Host "    ○ Gathering Azure Landing Zone inventory (v$script:Version)..." -ForegroundColor Gray
     

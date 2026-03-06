@@ -32,6 +32,8 @@ if ($PSVersionTable.PSVersion.Major -lt 7) {
 Write-Host "✓ PowerShell version: $($PSVersionTable.PSVersion)" -ForegroundColor Green
 
 # Check and import Azure modules
+Write-Host "📦 Checking required PowerShell modules..." -ForegroundColor Cyan
+
 $requiredModules = @(
     'Az.Accounts', 
     'Az.Resources', 
@@ -39,12 +41,57 @@ $requiredModules = @(
     'Az.PolicyInsights'
 )
 
-foreach ($module in $requiredModules) {
-    if (-not (Get-Module -ListAvailable -Name $module)) {
-        Write-Host "⚠️  Module $module not found. Installing..." -ForegroundColor Yellow
-        Install-Module -Name $module -Force -Scope CurrentUser -AllowClobber
+function Update-RequiredModule {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$ModuleName
+    )
+    
+    try {
+        $installedModule = Get-Module -ListAvailable -Name $ModuleName | Sort-Object Version -Descending | Select-Object -First 1
+        
+        if (-not $installedModule) {
+            Write-Host "   ⬇️  Installing $ModuleName..." -ForegroundColor Yellow
+            Install-Module -Name $ModuleName -Force -Scope CurrentUser -AllowClobber -ErrorAction Stop
+            $installedModule = Get-Module -ListAvailable -Name $ModuleName | Sort-Object Version -Descending | Select-Object -First 1
+            Write-Host "   ✓ Installed $ModuleName v$($installedModule.Version)" -ForegroundColor Green
+        } else {
+            # Check for updates
+            try {
+                $onlineModule = Find-Module -Name $ModuleName -ErrorAction Stop
+                
+                if ($onlineModule.Version -gt $installedModule.Version) {
+                    Write-Host "   ⬆️  Updating $ModuleName from v$($installedModule.Version) to v$($onlineModule.Version)..." -ForegroundColor Yellow
+                    Update-Module -Name $ModuleName -Force -ErrorAction Stop
+                    Write-Host "   ✓ Updated $ModuleName to v$($onlineModule.Version)" -ForegroundColor Green
+                } else {
+                    Write-Host "   ✓ $ModuleName v$($installedModule.Version) (latest)" -ForegroundColor Green
+                }
+            } catch {
+                # If online check fails (e.g., no internet), just use installed version
+                Write-Host "   ✓ $ModuleName v$($installedModule.Version) (online check skipped)" -ForegroundColor Gray
+            }
+        }
+        
+        # Import the module
+        Import-Module $ModuleName -ErrorAction Stop -Force
+        return $true
+    } catch {
+        Write-Host "   ✗ Error with $ModuleName: $($_.Exception.Message)" -ForegroundColor Red
+        return $false
     }
-    Import-Module $module -ErrorAction SilentlyContinue
+}
+
+$allModulesOk = $true
+foreach ($module in $requiredModules) {
+    if (-not (Update-RequiredModule -ModuleName $module)) {
+        $allModulesOk = $false
+    }
+}
+
+if (-not $allModulesOk) {
+    Write-Host "❌ Not all required modules are available. Please resolve module issues and try again." -ForegroundColor Red
+    exit 1
 }
 
 # Import inventory collection module
