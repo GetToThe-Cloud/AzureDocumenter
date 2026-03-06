@@ -523,12 +523,13 @@ This project is provided as-is under the MIT License for monitoring and document
 ## 👨‍💻 Author
 
 **Alex ter Neuzen**  
-Cloud Solutions Architect | Azure Virtual Desktop Specialist
+IT Consultant with experience in Azure Local, Azure Landing Zones and Azure Virtual Desktop
 
-🌐 Website: [www.gettothe.cloud](https://www.gettothe.cloud)  
-💼 LinkedIn: Connect for more Azure content  
-📝 Blog: AVD best practices, tips, and tutorials
+🌐 Website: [GetToTheCloud](https://www.gettothe.cloud)  
+📧 Contact: Through website  
+💼 Specialties: Azure Landing Zones, Cloud Adoption, Infrastructure as Code
 
+---
 ## ✨ Credits & Acknowledgments
 
 Built with:

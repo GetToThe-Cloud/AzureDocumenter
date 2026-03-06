@@ -802,7 +802,7 @@ See [LICENSE](LICENSE) file for full terms.
 ## 👨‍💻 Author
 
 **Alex ter Neuzen**  
-Cloud Architect & Azure Specialist
+IT Consultant with experience in Azure Local, Azure Landing Zones and Azure Virtual Desktop
 
 🌐 Website: [GetToTheCloud](https://www.gettothe.cloud)  
 📧 Contact: Through website  

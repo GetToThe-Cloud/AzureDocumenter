@@ -696,6 +696,17 @@ pwsh Start-AzureLocalServer.ps1 -Port 8082
 
 This project is licensed under the MIT License - see the [LICENSE](../LICENSE) file in the parent repository for details.
 
+## 👨‍💻 Author
+
+**Alex ter Neuzen**  
+IT Consultant with experience in Azure Local, Azure Landing Zones and Azure Virtual Desktop
+
+🌐 Website: [GetToTheCloud](https://www.gettothe.cloud)  
+📧 Contact: Through website  
+💼 Specialties: Azure Landing Zones, Cloud Adoption, Infrastructure as Code
+
+---
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit issues, feature requests, or pull requests.
