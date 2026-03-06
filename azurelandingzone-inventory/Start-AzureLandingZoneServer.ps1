@@ -77,7 +77,7 @@ function Update-RequiredModule {
         Import-Module $ModuleName -ErrorAction Stop -Force
         return $true
     } catch {
-        Write-Host "   ✗ Error with $ModuleName: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "   ✗ Error with ${ModuleName}: $($_.Exception.Message)" -ForegroundColor Red
         return $false
     }
 }
