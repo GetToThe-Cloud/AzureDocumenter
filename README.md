@@ -54,6 +54,35 @@ cd azurelandingzone-inventory
 start.cmd           # Windows
 ```
 
+### 📁 azurelocal-inventory/
+
+Comprehensive inventory and documentation tool for Azure Local (Azure Stack HCI) environments.
+
+**Key Features:**
+- 🔷 Complete Azure Local infrastructure inventory (Clusters, Nodes, VMs, Networks, Storage)
+- 💰 Cost analysis with Azure Hybrid Benefit detection and savings calculations
+- 🔗 Arc ecosystem integration (Custom Locations, Resource Bridges, Gateways, Extensions)
+- 📜 License compliance monitoring with ESU and Windows Server licensing
+- 🖥️ Hardware specifications (manufacturer, model, serial numbers, cores, memory)
+- 🎯 Well-Architected Framework (WAF) assessment
+- 📄 Professional PDF reports with charts and cost optimization recommendations
+- 🌐 Real-time web dashboard with interactive filtering
+
+**Files:**
+- `Get-AzureLocalInventory.ps1` - PowerShell script to collect inventory data
+- `Start-AzureLocalServer.ps1` - Local web server launcher
+- `index.html` - Web-based dashboard
+- `app.js` - Frontend logic and data processing
+- `styles.css` - Dashboard styling
+- `start.sh` - Quick start script for macOS/Linux
+- `README.md` - Detailed documentation
+
+**Quick Start:**
+```bash
+cd azurelocal-inventory
+./start.sh          # macOS/Linux
+```
+
 ### 📁 azurevirtualdesktop-inventory/
 
 Production-ready dashboard for Azure Virtual Desktop (AVD) infrastructure documentation.
@@ -106,6 +135,7 @@ cd azurevirtualdesktop-inventory
 
 3. **Choose your tool:**
    - Navigate to `azurelandingzone-inventory/` for Landing Zone documentation
+   - Navigate to `azurelocal-inventory/` for Azure Local (Stack HCI) documentation
    - Navigate to `azurevirtualdesktop-inventory/` for AVD documentation
 
 4. **Run the launcher:**
@@ -123,6 +153,12 @@ Each tool includes comprehensive documentation in its respective README.md file:
   - PDF report generation
   - Troubleshooting guide
 
+- **[Azure Local Inventory Documentation](azurelocal-inventory/README.md)**
+  - Infrastructure inventory
+  - Cost analysis and optimization
+  - Arc integration and licensing
+  - Hardware specifications
+
 - **[Azure Virtual Desktop Inventory Documentation](azurevirtualdesktop-inventory/README.md)**
   - Dashboard features
   - Component tracking
@@ -138,6 +174,14 @@ Each tool includes comprehensive documentation in its respective README.md file:
 - **Compliance Officers**: Generate comprehensive infrastructure reports
 - **Cloud Architects**: Assess Well-Architected Framework alignment
 
+### Azure Local Inventory
+- **Azure Local Administrators**: Monitor cluster health, nodes, and workloads
+- **FinOps Teams**: Track Azure Hybrid Benefit usage and cost optimization opportunities
+- **License Compliance**: Document ESU and Windows Server licensing status
+- **Infrastructure Teams**: Hardware inventory with manufacturer, model, and serial numbers
+- **Arc Administrators**: Track Arc extensions, Resource Bridges, and Custom Locations
+- **Management**: Cost projections and optimization recommendations
+
 ### Azure Virtual Desktop Inventory
 - **AVD Administrators**: Monitor session host health and availability
 - **IT Operations**: Track scaling plans and capacity management
@@ -147,7 +191,7 @@ Each tool includes comprehensive documentation in its respective README.md file:
 
 ## 🔐 Security & Permissions
 
-Both tools use **read-only access** to Azure resources:
+All tools use **read-only access** to Azure resources:
 
 - Secure Azure device authentication flow
 - No credentials stored locally
@@ -178,7 +222,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Built with PowerShell and modern web technologies
 - Inspired by Microsoft Cloud Adoption Framework (CAF)
 - Aligned with Azure Well-Architected Framework (WAF)
-- Designed for Azure Landing Zone and AVD best practices
+- Designed for Azure Landing Zone, Azure Local, and AVD best practices
 
 ---
 
