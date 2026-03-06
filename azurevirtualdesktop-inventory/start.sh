@@ -18,6 +18,6 @@ fi
 pkill -f "Start-AVDInventoryServer.ps1" 2>/dev/null
 sleep 1
 
-# Start the server
+# Start the server with all command line arguments passed through
 cd "$SCRIPT_DIR"
-pwsh -File "./Start-AVDInventoryServer.ps1" -Port 8080
+pwsh -File "./Start-AVDInventoryServer.ps1" "$@"

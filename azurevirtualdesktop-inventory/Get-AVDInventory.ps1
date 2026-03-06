@@ -9,6 +9,109 @@
     https://www.gettothe.cloud
 #>
 
+function Test-Prerequisites {
+    [CmdletBinding()]
+    param(
+        [switch]$UpdateModules
+    )
+    
+    Write-Host "`n🔍 Checking Prerequisites..." -ForegroundColor Cyan
+    
+    # Check PowerShell Version
+    Write-Host "  ○ Checking PowerShell version..." -ForegroundColor Gray
+    $psVersion = $PSVersionTable.PSVersion
+    
+    if ($psVersion.Major -lt 7) {
+        Write-Host "  ✗ PowerShell 7 or higher is required" -ForegroundColor Red
+        Write-Host "    Current version: $($psVersion.ToString())" -ForegroundColor Yellow
+        Write-Host "    Download PowerShell 7+: https://github.com/PowerShell/PowerShell/releases" -ForegroundColor Yellow
+        return $false
+    }
+    
+    Write-Host "  ✓ PowerShell version: $($psVersion.ToString())" -ForegroundColor Green
+    
+    # Define required modules
+    $requiredModules = @(
+        @{ Name = 'Az.Accounts'; MinVersion = '2.0.0' }
+        @{ Name = 'Az.DesktopVirtualization'; MinVersion = '4.0.0' }
+        @{ Name = 'Az.Compute'; MinVersion = '5.0.0' }
+        @{ Name = 'Az.Network'; MinVersion = '5.0.0' }
+        @{ Name = 'Az.Resources'; MinVersion = '6.0.0' }
+    )
+    
+    Write-Host "  ○ Checking required Azure modules..." -ForegroundColor Gray
+    $missingModules = @()
+    $outdatedModules = @()
+    
+    foreach ($module in $requiredModules) {
+        $installed = Get-Module -ListAvailable -Name $module.Name | Sort-Object Version -Descending | Select-Object -First 1
+        
+        if (-not $installed) {
+            Write-Host "  ✗ Module $($module.Name) is not installed" -ForegroundColor Red
+            $missingModules += $module
+        } else {
+            $installedVersion = $installed.Version
+            $minVersion = [version]$module.MinVersion
+            
+            if ($installedVersion -lt $minVersion) {
+                Write-Host "  ⚠ Module $($module.Name) version $installedVersion is below minimum $minVersion" -ForegroundColor Yellow
+                $outdatedModules += $module
+            } else {
+                # Check if there's a newer version available online
+                try {
+                    $online = Find-Module -Name $module.Name -ErrorAction SilentlyContinue
+                    if ($online -and $online.Version -gt $installedVersion) {
+                        Write-Host "  ⚠ Module $($module.Name) version $installedVersion (newer version $($online.Version) available)" -ForegroundColor Yellow
+                        if ($UpdateModules) {
+                            $outdatedModules += $module
+                        }
+                    } else {
+                        Write-Host "  ✓ Module $($module.Name) version $installedVersion" -ForegroundColor Green
+                    }
+                } catch {
+                    # If we can't check online, just report installed version
+                    Write-Host "  ✓ Module $($module.Name) version $installedVersion" -ForegroundColor Green
+                }
+            }
+        }
+    }
+    
+    # Install missing modules
+    if ($missingModules.Count -gt 0) {
+        Write-Host "`n  ℹ️  Missing modules detected. Attempting to install..." -ForegroundColor Cyan
+        foreach ($module in $missingModules) {
+            try {
+                Write-Host "    ○ Installing $($module.Name)..." -ForegroundColor Gray
+                Install-Module -Name $module.Name -MinimumVersion $module.MinVersion -Scope CurrentUser -Force -AllowClobber -ErrorAction Stop
+                Write-Host "    ✓ Successfully installed $($module.Name)" -ForegroundColor Green
+            } catch {
+                Write-Host "    ✗ Failed to install $($module.Name): $($_.Exception.Message)" -ForegroundColor Red
+                return $false
+            }
+        }
+    }
+    
+    # Update outdated modules
+    if ($UpdateModules -and $outdatedModules.Count -gt 0) {
+        Write-Host "`n  ℹ️  Updating outdated modules..." -ForegroundColor Cyan
+        foreach ($module in $outdatedModules) {
+            try {
+                Write-Host "    ○ Updating $($module.Name)..." -ForegroundColor Gray
+                Update-Module -Name $module.Name -Force -ErrorAction Stop
+                Write-Host "    ✓ Successfully updated $($module.Name)" -ForegroundColor Green
+            } catch {
+                Write-Host "    ⚠ Failed to update $($module.Name): $($_.Exception.Message)" -ForegroundColor Yellow
+                Write-Host "    ○ Continuing with installed version..." -ForegroundColor Gray
+            }
+        }
+    } elseif ($outdatedModules.Count -gt 0) {
+        Write-Host "`n  ℹ️  To update modules, run with -UpdateModules switch" -ForegroundColor Cyan
+    }
+    
+    Write-Host "`n✓ All prerequisites met!`n" -ForegroundColor Green
+    return $true
+}
+
 function Get-AVDInventoryData {
     [CmdletBinding()]
     param()

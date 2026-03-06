@@ -44,6 +44,13 @@ A comprehensive, production-ready web-based dashboard for documenting and monito
 - **Read-only access** - no modifications to your environment
 - **Session-based authentication** - credentials managed by Azure PowerShell SDK
 
+### ⚙️ Automated Setup & Validation
+- **PowerShell 7+ requirement check** - ensures compatibility on startup
+- **Automatic module installation** - missing Azure modules are installed automatically
+- **Module version validation** - checks for minimum required versions
+- **Optional module updates** - use `-UpdateModules` to update all modules to latest versions
+- **Comprehensive error reporting** - clear messages about any missing prerequisites
+
 ## 📋 Prerequisites
 
 ### Required Software
@@ -51,14 +58,21 @@ A comprehensive, production-ready web-based dashboard for documenting and monito
   - Windows: Available via Microsoft Store or installer
   - macOS: `brew install --cask powershell`
   - Linux: Follow [official installation guide](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell)
+  
+> **Note**: The server will automatically check for PowerShell 7+ on startup and will not start with older versions.
 
 ### Azure PowerShell Modules
-The following modules will be installed automatically on first run if not present:
-- `Az.Accounts` - Azure authentication and context management
-- `Az.DesktopVirtualization` - AVD resource management
-- `Az.Resources` - Resource group and subscription queries
-- `Az.Network` - Virtual network information
-- `Az.Compute` - Compute gallery and image definitions
+The following modules are required and will be checked/installed automatically on first run:
+- `Az.Accounts` (v2.0.0+) - Azure authentication and context management
+- `Az.DesktopVirtualization` (v4.0.0+) - AVD resource management
+- `Az.Resources` (v6.0.0+) - Resource group and subscription queries
+- `Az.Network` (v5.0.0+) - Virtual network information
+- `Az.Compute` (v5.0.0+) - Compute gallery and image definitions
+
+**Automatic Module Management:**
+- Missing modules are automatically installed on first run
+- Outdated modules are detected and reported
+- Use `-UpdateModules` switch to automatically update to the latest versions
 
 ### Azure Requirements
 - **Azure Subscription** with Azure Virtual Desktop resources
@@ -83,19 +97,36 @@ cd azurevirtualdesktop-inventory
 
 **On Windows (PowerShell):**
 ```powershell
+# Basic start - will install missing modules if needed
 .\Start-AVDInventoryServer.ps1
+
+# Update all modules to latest version
+.\Start-AVDInventoryServer.ps1 -UpdateModules
 ```
 
 **On macOS/Linux:**
 ```bash
 chmod +x start.sh
+
+# Basic start
 ./start.sh
+
+# Update all modules to latest version
+./start.sh -UpdateModules
+
+# Custom port
+./start.sh -Port 3000
 ```
 
 **Custom Port:**
 ```powershell
 .\Start-AVDInventoryServer.ps1 -Port 3000
 ```
+
+**First Run:**
+- The script will automatically check for PowerShell 7+
+- Missing Azure modules will be installed automatically
+- Outdated modules will be reported (use `-UpdateModules` to update them)
 
 ### 3. Access the Dashboard
 
@@ -224,18 +255,41 @@ Edit `styles.css` to customize colors:
 
 ## 🛠️ Troubleshooting
 
+### PowerShell Version Check Fails
+
+**Problem**: "PowerShell 7 or higher is required"
+
+**Solution**:
+The script requires PowerShell 7 or newer. Check your version:
+```powershell
+$PSVersionTable.PSVersion
+```
+
+If you're running an older version:
+- **Windows**: Install from Microsoft Store or [download installer](https://github.com/PowerShell/PowerShell/releases)
+- **macOS**: `brew install --cask powershell`
+- **Linux**: Follow the [official installation guide](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell)
+
+> **Note**: Windows PowerShell 5.1 is NOT supported. You must use PowerShell 7+.
+
 ### Module Installation Fails
 
 **Problem**: Azure modules don't install automatically
 
 **Solution**:
+The script will automatically install missing modules. If this fails:
 ```powershell
 # Install modules manually with elevated privileges
-Install-Module Az.Accounts -Force -Scope CurrentUser -AllowClobber
-Install-Module Az.DesktopVirtualization -Force -Scope CurrentUser
-Install-Module Az.Resources -Force -Scope CurrentUser
-Install-Module Az.Network -Force -Scope CurrentUser
-Install-Module Az.Compute -Force -Scope CurrentUser
+Install-Module Az.Accounts -Force -Scope CurrentUser -AllowClobber -MinimumVersion 2.0.0
+Install-Module Az.DesktopVirtualization -Force -Scope CurrentUser -MinimumVersion 4.0.0
+Install-Module Az.Resources -Force -Scope CurrentUser -MinimumVersion 6.0.0
+Install-Module Az.Network -Force -Scope CurrentUser -MinimumVersion 5.0.0
+Install-Module Az.Compute -Force -Scope CurrentUser -MinimumVersion 5.0.0
+```
+
+**To update all modules to the latest version:**
+```powershell
+.\Start-AVDInventoryServer.ps1 -UpdateModules
 ```
 
 ### Authentication Errors

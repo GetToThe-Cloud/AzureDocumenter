@@ -7,6 +7,8 @@
     with authentication, navigation, PDF export, and connection diagrams.
 .PARAMETER Port
     Port number for the web server (default: 8080)
+.PARAMETER UpdateModules
+    Update Azure modules to the latest version if newer versions are available
 .AUTHOR
     Alex ter Neuzen - https://www.gettothe.cloud
 .LINK
@@ -14,7 +16,8 @@
 #>
 
 param(
-    [int]$Port = 8080
+    [int]$Port = 8080,
+    [switch]$UpdateModules
 )
 
 # Import required modules
@@ -22,25 +25,20 @@ $ErrorActionPreference = "Stop"
 
 Write-Host "🚀 Starting Azure Virtual Desktop Inventory Server..." -ForegroundColor Cyan
 
-# Check and import Azure modules
-$requiredModules = @('Az.Accounts', 'Az.DesktopVirtualization', 'Az.Resources', 'Az.Network', 'Az.Compute')
-foreach ($module in $requiredModules) {
-    if (-not (Get-Module -ListAvailable -Name $module)) {
-        Write-Host "⚠️  Module $module not found. Installing..." -ForegroundColor Yellow
-        Install-Module -Name $module -Force -Scope CurrentUser -AllowClobber
-    }
-    Import-Module $module -ErrorAction SilentlyContinue
-}
-
-# Import inventory collection module
+# Import inventory collection module first (to get Test-Prerequisites function)
 $inventoryModulePath = Join-Path $PSScriptRoot "Get-AVDInventory.ps1"
 Write-Host "📦 Loading inventory module from: $inventoryModulePath" -ForegroundColor Gray
 if (Test-Path $inventoryModulePath) {
     . $inventoryModulePath
     Write-Host "✅ Inventory module loaded successfully" -ForegroundColor Green
-    Write-Host "    Functions available: $(Get-Command Get-AVDInventoryData -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name)" -ForegroundColor Gray
 } else {
     Write-Host "❌ Inventory module not found at: $inventoryModulePath" -ForegroundColor Red
+    exit 1
+}
+
+# Check prerequisites (PowerShell 7+ and required modules)
+if (-not (Test-Prerequisites -UpdateModules:$UpdateModules)) {
+    Write-Host "❌ Prerequisites check failed. Please resolve the issues above and try again." -ForegroundColor Red
     exit 1
 }
 
