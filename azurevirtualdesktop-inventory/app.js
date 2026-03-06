@@ -2028,16 +2028,15 @@ async function exportToPDF() {
                     yPos += 3;
                 }
                 
-                // Session Hosts Detail - Table Format
+                // Session Hosts Detail - Table Format (Landscape)
                 if (sub.hostPools.length > 0) {
                     const allSessionHosts = sub.hostPools.flatMap(hp => 
                         (hp.sessionHosts || []).map(sh => ({...sh, hostPoolName: hp.name, hostPoolType: hp.hostPoolType}))
                     );
                     if (allSessionHosts.length > 0) {
-                        if (yPos > pageHeight - 30) {
-                            pdf.addPage();
-                            yPos = 20;
-                        }
+                        // Add a new landscape page for session hosts table
+                        pdf.addPage('a4', 'landscape');
+                        yPos = 20;
                         
                         addText('Session Hosts:', 11, true);
                         pdf.setFontSize(8);
@@ -2069,38 +2068,39 @@ async function exportToPDF() {
                             const lastHB = sh.lastHeartBeat ? new Date(sh.lastHeartBeat).toLocaleDateString('en-US', {month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'}) : 'N/A';
                             
                             return [
-                                sh.name.length > 20 ? sh.name.substring(0, 17) + '...' : sh.name,
-                                sh.hostPoolName.length > 18 ? sh.hostPoolName.substring(0, 15) + '...' : sh.hostPoolName,
+                                sh.name.length > 28 ? sh.name.substring(0, 25) + '...' : sh.name,
+                                sh.hostPoolName.length > 24 ? sh.hostPoolName.substring(0, 21) + '...' : sh.hostPoolName,
                                 status,
                                 sessions,
-                                vmSize.length > 14 ? vmSize.substring(0, 11) + '...' : vmSize,
+                                vmSize,
                                 privateIP,
-                                imageSource.length > 24 ? imageSource.substring(0, 21) + '...' : imageSource,
-                                osVersion.length > 12 ? osVersion.substring(0, 9) + '...' : osVersion,
-                                agentVersion.length > 10 ? agentVersion.substring(0, 7) + '...' : agentVersion,
+                                imageSource.length > 32 ? imageSource.substring(0, 29) + '...' : imageSource,
+                                osVersion.length > 18 ? osVersion.substring(0, 15) + '...' : osVersion,
+                                agentVersion.length > 14 ? agentVersion.substring(0, 11) + '...' : agentVersion,
                                 lastHB
                             ];
                         });
                         
+                        // Landscape dimensions: width=297mm, so available width is ~267mm
                         pdf.autoTable({
                             startY: yPos,
-                            head: [['Session Host', 'Host Pool', 'Status', 'Sessions', 'VM Size', 'Private IP', 'Image Source', 'OS Ver', 'Agent Ver', 'Last Heartbeat']],
+                            head: [['Session Host', 'Host Pool', 'Status', 'Sessions', 'VM Size', 'Private IP', 'Image Source', 'OS Version', 'Agent Ver', 'Last Heartbeat']],
                             body: sessionHostTableData,
                             theme: 'grid',
-                            headStyles: { fillColor: [0, 120, 212], fontSize: 6.5, fontStyle: 'bold' },
-                            bodyStyles: { fontSize: 6 },
+                            headStyles: { fillColor: [0, 120, 212], fontSize: 7, fontStyle: 'bold' },
+                            bodyStyles: { fontSize: 6.5 },
                             margin: { left: margin, right: margin },
                             columnStyles: {
-                                0: { cellWidth: 24 },
-                                1: { cellWidth: 22 },
-                                2: { cellWidth: 14 },
-                                3: { cellWidth: 11, halign: 'center' },
-                                4: { cellWidth: 17 },
-                                5: { cellWidth: 18 },
-                                6: { cellWidth: 28 },
-                                7: { cellWidth: 14 },
-                                8: { cellWidth: 12 },
-                                9: { cellWidth: 20 }
+                                0: { cellWidth: 30 },
+                                1: { cellWidth: 28 },
+                                2: { cellWidth: 18 },
+                                3: { cellWidth: 14, halign: 'center' },
+                                4: { cellWidth: 22 },
+                                5: { cellWidth: 22 },
+                                6: { cellWidth: 38 },
+                                7: { cellWidth: 22 },
+                                8: { cellWidth: 18 },
+                                9: { cellWidth: 28 }
                             },
                             didParseCell: function(data) {
                                 // Color code status column
@@ -2119,7 +2119,10 @@ async function exportToPDF() {
                                 }
                             }
                         });
-                        yPos = pdf.lastAutoTable.finalY + 5;
+                        
+                        // Switch back to portrait for next section
+                        pdf.addPage('a4', 'portrait');
+                        yPos = 20;
                     }
                 }
                 
