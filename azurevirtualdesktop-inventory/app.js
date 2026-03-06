@@ -373,6 +373,7 @@ function renderSessionHosts() {
                             <tr>
                                 <th>Name</th>
                                 <th>Status</th>
+                                <th>VM Size</th>
                                 <th>Sessions</th>
                                 <th>Allow New Session</th>
                                 <th>VNet</th>
@@ -410,6 +411,7 @@ function renderSessionHosts() {
                     row.innerHTML = `
                         <td>${sh.name}</td>
                         <td><span class="badge ${statusBadge}">${sh.status}</span></td>
+                        <td style="font-size: 0.85rem;">${sh.vmSize || 'N/A'}</td>
                         <td>${sh.sessions}</td>
                         <td>${sh.allowNewSession ? '✓' : '✗'}</td>
                         <td style="font-size: 0.85rem;">${vnetInfo}</td>
@@ -2049,6 +2051,7 @@ async function exportToPDF() {
                         const sessionHostTableData = allSessionHosts.map(sh => {
                             const status = sh.status === 'Available' ? 'Available' : sh.status;
                             const sessions = sh.sessions > 0 ? `${sh.sessions}` : '0';
+                            const vmSize = sh.vmSize || 'N/A';
                             const privateIP = sh.network && sh.network.privateIP ? sh.network.privateIP : 'N/A';
                             
                             // Format image source
@@ -2066,36 +2069,38 @@ async function exportToPDF() {
                             const lastHB = sh.lastHeartBeat ? new Date(sh.lastHeartBeat).toLocaleDateString('en-US', {month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'}) : 'N/A';
                             
                             return [
-                                sh.name.length > 24 ? sh.name.substring(0, 21) + '...' : sh.name,
-                                sh.hostPoolName.length > 20 ? sh.hostPoolName.substring(0, 17) + '...' : sh.hostPoolName,
+                                sh.name.length > 20 ? sh.name.substring(0, 17) + '...' : sh.name,
+                                sh.hostPoolName.length > 18 ? sh.hostPoolName.substring(0, 15) + '...' : sh.hostPoolName,
                                 status,
                                 sessions,
+                                vmSize.length > 14 ? vmSize.substring(0, 11) + '...' : vmSize,
                                 privateIP,
-                                imageSource.length > 28 ? imageSource.substring(0, 25) + '...' : imageSource,
-                                osVersion.length > 15 ? osVersion.substring(0, 12) + '...' : osVersion,
-                                agentVersion.length > 12 ? agentVersion.substring(0, 9) + '...' : agentVersion,
+                                imageSource.length > 24 ? imageSource.substring(0, 21) + '...' : imageSource,
+                                osVersion.length > 12 ? osVersion.substring(0, 9) + '...' : osVersion,
+                                agentVersion.length > 10 ? agentVersion.substring(0, 7) + '...' : agentVersion,
                                 lastHB
                             ];
                         });
                         
                         pdf.autoTable({
                             startY: yPos,
-                            head: [['Session Host', 'Host Pool', 'Status', 'Sessions', 'Private IP', 'Image Source', 'OS Version', 'Agent Ver', 'Last Heartbeat']],
+                            head: [['Session Host', 'Host Pool', 'Status', 'Sessions', 'VM Size', 'Private IP', 'Image Source', 'OS Ver', 'Agent Ver', 'Last Heartbeat']],
                             body: sessionHostTableData,
                             theme: 'grid',
                             headStyles: { fillColor: [0, 120, 212], fontSize: 6.5, fontStyle: 'bold' },
                             bodyStyles: { fontSize: 6 },
                             margin: { left: margin, right: margin },
                             columnStyles: {
-                                0: { cellWidth: 28 },
-                                1: { cellWidth: 24 },
-                                2: { cellWidth: 16 },
-                                3: { cellWidth: 12, halign: 'center' },
-                                4: { cellWidth: 20 },
-                                5: { cellWidth: 32 },
-                                6: { cellWidth: 18 },
+                                0: { cellWidth: 24 },
+                                1: { cellWidth: 22 },
+                                2: { cellWidth: 14 },
+                                3: { cellWidth: 11, halign: 'center' },
+                                4: { cellWidth: 17 },
+                                5: { cellWidth: 18 },
+                                6: { cellWidth: 28 },
                                 7: { cellWidth: 14 },
-                                8: { cellWidth: 24 }
+                                8: { cellWidth: 12 },
+                                9: { cellWidth: 20 }
                             },
                             didParseCell: function(data) {
                                 // Color code status column

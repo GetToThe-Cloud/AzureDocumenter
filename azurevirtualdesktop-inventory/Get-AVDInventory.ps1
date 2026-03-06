@@ -196,6 +196,7 @@ function Get-AVDInventoryData {
                             agentVersion = $sh.AgentVersion
                             lastHeartBeat = if ($sh.LastHeartBeat) { $sh.LastHeartBeat.ToString('o') } else { $null }
                             updateState = $sh.UpdateState
+                            vmSize = if ($vm) { $vm.HardwareProfile.VmSize } else { $null }
                             network = $networkInfo
                             image = $imageInfo
                         }
