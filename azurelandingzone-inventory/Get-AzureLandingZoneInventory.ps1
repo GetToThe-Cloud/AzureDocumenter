@@ -294,9 +294,9 @@ Move Strategy:
         # Get Policy Definitions
         Write-Host "    ○ Collecting Policy Definitions..." -ForegroundColor Gray
         try {
-            # Collect both custom and a sample of built-in policies
+            # Collect both custom and built-in policies
             $customPolicyDefs = Get-AzPolicyDefinition -Custom -ErrorAction SilentlyContinue
-            $builtInPolicyDefs = Get-AzPolicyDefinition -Builtin -ErrorAction SilentlyContinue | Select-Object -First 20
+            $builtInPolicyDefs = Get-AzPolicyDefinition -Builtin -ErrorAction SilentlyContinue
             $allPolicyDefs = @($customPolicyDefs) + @($builtInPolicyDefs)
             
             $inventory.summary.totalPolicyDefinitions = $customPolicyDefs.Count
@@ -338,9 +338,9 @@ Move Strategy:
         # Get Policy Initiatives (SetDefinitions)
         Write-Host "    ○ Collecting Policy Initiatives..." -ForegroundColor Gray
         try {
-            # Collect both custom and a sample of built-in initiatives
+            # Collect both custom and built-in initiatives
             $customInitiatives = Get-AzPolicySetDefinition -Custom -ErrorAction SilentlyContinue
-            $builtInInitiatives = Get-AzPolicySetDefinition -Builtin -ErrorAction SilentlyContinue | Select-Object -First 20
+            $builtInInitiatives = Get-AzPolicySetDefinition -Builtin -ErrorAction SilentlyContinue
             $allInitiatives = @($customInitiatives) + @($builtInInitiatives)
             
             $inventory.summary.totalPolicyInitiatives = $customInitiatives.Count
@@ -387,7 +387,7 @@ Move Strategy:
         # Get Policy Assignments
         Write-Host "    ○ Collecting Policy Assignments..." -ForegroundColor Gray
         try {
-            $assignments = Get-AzPolicyAssignment -ErrorAction SilentlyContinue | Select-Object -First 100
+            $assignments = Get-AzPolicyAssignment -ErrorAction SilentlyContinue
             $inventory.summary.totalPolicyAssignments = $assignments.Count
             
             foreach ($assignment in $assignments) {
@@ -436,7 +436,7 @@ Move Strategy:
         # Get Role Assignments
         Write-Host "    ○ Collecting Role Assignments..." -ForegroundColor Gray
         try {
-            $roles = Get-AzRoleAssignment -ErrorAction SilentlyContinue | Select-Object -First 100
+            $roles = Get-AzRoleAssignment -ErrorAction SilentlyContinue
             $inventory.summary.totalRoleAssignments = $roles.Count
             
             foreach ($role in $roles) {
@@ -456,7 +456,7 @@ Move Strategy:
         
         # Get Networking Resources (loop through subscriptions)
         Write-Host "    ○ Collecting Networking Resources..." -ForegroundColor Gray
-        foreach ($sub in $subs | Select-Object -First 10) {
+        foreach ($sub in $subs) {
             try {
                 Set-AzContext -SubscriptionId $sub.Id | Out-Null
                 
@@ -844,7 +844,7 @@ Move Strategy:
         
         # Get Virtual Machines
         Write-Host "    ○ Collecting Virtual Machines..." -ForegroundColor Gray
-        foreach ($sub in $subs | Select-Object -First 10) {
+        foreach ($sub in $subs) {
             try {
                 Set-AzContext -SubscriptionId $sub.Id | Out-Null
                 
@@ -930,7 +930,7 @@ Move Strategy:
         
         # Get Governance Resources
         Write-Host "    ○ Collecting Governance Resources..." -ForegroundColor Gray
-        foreach ($sub in $subs | Select-Object -First 10) {
+        foreach ($sub in $subs) {
             try {
                 Set-AzContext -SubscriptionId $sub.Id | Out-Null
                 
@@ -970,7 +970,7 @@ Move Strategy:
                 $inventory.summary.totalLocks += $locks.Count
                 
                 # Collect commonly used tags
-                $resources = Get-AzResource -ErrorAction SilentlyContinue | Select-Object -First 50
+                $resources = Get-AzResource -ErrorAction SilentlyContinue
                 foreach ($resource in $resources) {
                     if ($resource.Tags) {
                         foreach ($tagKey in $resource.Tags.Keys) {
