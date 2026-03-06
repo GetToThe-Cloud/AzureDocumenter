@@ -10,7 +10,7 @@ A comprehensive, production-ready web-based dashboard for documenting and monito
 
 ### 📊 Comprehensive Inventory Collection
 - **Host Pools**: Configuration, load balancing, session limits, registration tokens
-- **Session Hosts**: Status, sessions, network details, image source tracking, OS/agent versions
+- **Session Hosts**: Status, sessions, VM sizes (SKU), network details, image source tracking, OS/agent versions, last heartbeat
 - **Workspaces**: Friendly names, application group associations
 - **Application Groups**: Desktop and RemoteApp configurations with published applications
 - **Scaling Plans**: Automated capacity management with schedule details and time zones
@@ -27,15 +27,17 @@ A comprehensive, production-ready web-based dashboard for documenting and monito
 
 ### 📄 Professional PDF Export
 - **Complete documentation** of your AVD infrastructure
+- **Version tracking** - Report version number included in PDF and web interface
 - **Detailed tables** with:
-  - Session hosts with IP addresses, image sources, OS versions, agent versions, and heartbeat status
+  - Session hosts with VM sizes (SKU), IP addresses, image sources, OS versions, agent versions, and heartbeat status
   - Host pool configurations with load balancing and session limits
   - Scaling plan schedules with time zones and capacity thresholds
   - Compute galleries with image definitions and version details
   - Application groups with published applications
   - Virtual networks with subnet configurations
+- **Landscape orientation** for session hosts table to accommodate all columns
 - **Color-coded status indicators** for availability and health
-- **Attribution footer** on every page
+- **Attribution footer** on every page with version information
 - **Professional formatting** suitable for audits and documentation
 
 ### 🔐 Secure Azure Integration
@@ -62,28 +64,83 @@ A comprehensive, production-ready web-based dashboard for documenting and monito
 > **Note**: The server will automatically check for PowerShell 7+ on startup and will not start with older versions.
 
 ### Azure PowerShell Modules
+
 The following modules are required and will be checked/installed automatically on first run:
-- `Az.Accounts` (v2.0.0+) - Azure authentication and context management
-- `Az.DesktopVirtualization` (v4.0.0+) - AVD resource management
-- `Az.Resources` (v6.0.0+) - Resource group and subscription queries
-- `Az.Network` (v5.0.0+) - Virtual network information
-- `Az.Compute` (v5.0.0+) - Compute gallery and image definitions
+
+| Module | Minimum Version | Purpose |
+|--------|----------------|----------|
+| `Az.Accounts` | 2.0.0+ | Azure authentication and context management |
+| `Az.DesktopVirtualization` | 4.0.0+ | AVD-specific resources (host pools, workspaces, scaling plans) |
+| `Az.Resources` | 6.0.0+ | Resource group and subscription queries |
+| `Az.Network` | 5.0.0+ | Virtual network and subnet information |
+| `Az.Compute` | 5.0.0+ | VM details, compute galleries, and image definitions |
 
 **Automatic Module Management:**
-- Missing modules are automatically installed on first run
-- Outdated modules are detected and reported
-- Use `-UpdateModules` switch to automatically update to the latest versions
+- ✅ Missing modules are automatically installed on first run
+- ✅ Outdated modules are detected and reported
+- ✅ Use `-UpdateModules` switch to automatically update to the latest versions
+- ✅ Modules are installed in `CurrentUser` scope (no admin rights required)
 
-### Azure Requirements
-- **Azure Subscription** with Azure Virtual Desktop resources
-- **Permissions**: Reader role on AVD resources (minimum)
-- **Supported AVD Components**:
-  - Host Pools (Pooled and Personal)
-  - Session Hosts (Windows 10/11 multi-session, Windows Server)
-  - Application Groups (Desktop and RemoteApp)
-  - Workspaces
-  - Scaling Plans
-  - Compute Galleries
+**Manual Installation** (if automatic installation fails):
+```powershell
+Install-Module Az.Accounts -MinimumVersion 2.0.0 -Scope CurrentUser -Force
+Install-Module Az.DesktopVirtualization -MinimumVersion 4.0.0 -Scope CurrentUser -Force
+Install-Module Az.Resources -MinimumVersion 6.0.0 -Scope CurrentUser -Force
+Install-Module Az.Network -MinimumVersion 5.0.0 -Scope CurrentUser -Force
+Install-Module Az.Compute -MinimumVersion 5.0.0 -Scope CurrentUser -Force
+```
+
+### Azure Requirements & Permissions
+
+**Subscription Requirements:**
+- One or more Azure subscriptions with Azure Virtual Desktop resources
+- Subscriptions must be in "Enabled" state
+- Access to Azure Active Directory for authentication
+
+**Required Azure RBAC Permissions:**
+
+Minimum permissions required to run the inventory:
+
+| Resource Type | Required Role | Scope | Purpose |
+|--------------|--------------|-------|----------|
+| **Azure Virtual Desktop** | `Desktop Virtualization Reader` | Subscription or Resource Group | Read host pools, workspaces, app groups, scaling plans |
+| **Virtual Machines** | `Reader` | Subscription or Resource Group | Read session host VM details, sizes, and network configuration |
+| **Network** | `Reader` | Subscription or Resource Group | Read virtual networks, subnets, and network interfaces |
+| **Compute Galleries** | `Reader` | Subscription or Resource Group | Read compute galleries and image definitions |
+| **Subscriptions** | `Reader` | Subscription | List and read subscription details |
+
+**Recommended Approach:**
+- 🎯 **Best Practice**: Assign `Reader` role at the **Subscription** level for complete visibility
+- ⚠️ **Minimum**: Assign `Reader` role on each Resource Group containing AVD resources
+- ❌ **Not Required**: No Contributor, Owner, or any write permissions needed
+
+**Assigning Permissions (Azure Portal):**
+1. Navigate to: Subscriptions → Access Control (IAM)
+2. Click "Add" → "Add role assignment"
+3. Select role: `Reader`
+4. Assign access to: User, group, or service principal
+5. Select the user who will run the inventory tool
+6. Click "Save"
+
+**Assigning Permissions (PowerShell):**
+```powershell
+# Assign Reader role at subscription level
+$userId = "user@domain.com"
+$subscriptionId = "your-subscription-id"
+New-AzRoleAssignment -SignInName $userId `
+  -RoleDefinitionName "Reader" `
+  -Scope "/subscriptions/$subscriptionId"
+```
+
+**Supported AVD Components:**
+- ✅ Host Pools (Pooled and Personal)
+- ✅ Session Hosts (Windows 10/11 multi-session, Windows Server 2019/2022)
+- ✅ Application Groups (Desktop and RemoteApp)
+- ✅ Workspaces
+- ✅ Scaling Plans (with schedule details)
+- ✅ Compute Galleries and Image Definitions
+- ✅ Virtual Networks and Subnets
+- ✅ User Sessions (active and disconnected)
 
 ## 🚀 Quick Start
 
@@ -154,13 +211,13 @@ The authentication session persists until the server is stopped or you clear you
 |---------|-------------|
 | 📊 **Overview** | Summary statistics, total resources, health status |
 | 🏊 **Host Pools** | Configuration details, load balancing, session limits |
-| 💻 **Session Hosts** | VM status, sessions, network info, image sources |
+| 💻 **Session Hosts** | VM status, SKU size, sessions, network info, image sources |
 | 📁 **Workspaces** | User-facing resources and application group associations |
 | 📦 **Application Groups** | Desktop and RemoteApp configurations |
 | ⚖️ **Scaling Plans** | Automated start/stop schedules and capacity thresholds |
 | 🌐 **Virtual Networks** | Network connectivity and subnet details |
 | 🖼️ **Compute Galleries** | Custom images, versions, and usage tracking |
-| 🔗 **Connection Diagram** | Visual map of resource relationships (coming soon) |
+| 🔗 **Connection Diagram** | Visual map of resource relationships and topology |
 
 ### Refreshing Inventory
 
@@ -175,11 +232,13 @@ Click the **🔄 Refresh** button in the header to manually update data from Azu
 3. PDF will download automatically as `AVD-WAF-Assessment-YYYY-MM-DD.pdf`
 
 **PDF Contents:**
-- Complete inventory documentation
+- Complete inventory documentation with report version number
 - Detailed tables with filtering and formatting
 - Color-coded status indicators
 - Professional layout suitable for documentation and audits
-- Attribution footer with creation details
+- Attribution footer with creation details and version information
+
+> **Note**: The report version is displayed in the web interface footer and included on the PDF cover page.
 
 ## 🏗️ Architecture
 
@@ -416,9 +475,10 @@ The web server exposes the following REST endpoints:
 - ✅ **HTTPS compatible**: Can be proxied through HTTPS reverse proxy if needed
 
 ### Recommended Access Roles
-- **Minimum**: `Reader` on target resource groups
-- **Recommended**: `Reader` at subscription level for complete inventory
-- **Not required**: Contributor, Owner, or any write permissions
+- **Minimum**: `Reader` role on all resource groups containing AVD resources
+- **Recommended**: `Reader` role at subscription level for complete inventory and automatic discovery
+- **Alternative**: `Desktop Virtualization Reader` for AVD-specific resources + `Reader` for VMs and networks
+- **Not required**: Contributor, Owner, or any write/modify permissions
 
 ### Production Deployment
 For production use beyond localhost:
