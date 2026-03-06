@@ -228,13 +228,20 @@ Move Strategy:
     try {
         # Get Management Groups
         Write-Host "    ○ Collecting Management Groups..." -ForegroundColor Gray
+        
+        # Store current context and temporarily clear subscription context for tenant-level operations
+        $currentContext = Get-AzContext
+        Write-Host "      ○ Current Context: Tenant=$($currentContext.Tenant.Id), Sub=$($currentContext.Subscription.Name)" -ForegroundColor Gray
+        Write-Host "      ○ Authenticated as: $($currentContext.Account.Id)" -ForegroundColor Gray
+        
         try {
-            $mgList = Get-AzManagementGroup -ErrorAction SilentlyContinue
+            $mgList = @(Get-AzManagementGroup -ErrorAction Stop)
             $inventory.summary.totalManagementGroups = $mgList.Count
+            Write-Host "      ○ Found $($mgList.Count) management group(s) at tenant level" -ForegroundColor Gray
             
             foreach ($mg in $mgList) {
                 try {
-                    $mgDetails = Get-AzManagementGroup -GroupId $mg.Name -Expand -Recurse -ErrorAction SilentlyContinue
+                    $mgDetails = Get-AzManagementGroup -GroupId $mg.Name -Expand -Recurse -ErrorAction Stop
                     $inventory.managementGroups += @{
                         id = $mg.Id
                         name = $mg.Name
@@ -252,12 +259,17 @@ Move Strategy:
                         parentName = if ($mgDetails.ParentName) { $mgDetails.ParentName } else { "Root" }
                     }
                 } catch {
-                    Write-Host "      ⚠️  Could not get details for MG: $($mg.Name)" -ForegroundColor Yellow
+                    Write-Host "      ⚠️  Could not get details for MG: $($mg.Name) - $($_.Exception.Message)" -ForegroundColor Yellow
                 }
             }
             Write-Host "      ✓ Collected $($inventory.summary.totalManagementGroups) management groups" -ForegroundColor Green
         } catch {
-            Write-Host "      ⚠️  Limited access to Management Groups" -ForegroundColor Yellow
+            Write-Host "      ⚠️  Error accessing Management Groups: $($_.Exception.Message)" -ForegroundColor Yellow
+            Write-Host "      ○ Error details: $($_.Exception.GetType().FullName)" -ForegroundColor Gray
+            # Check if it's a permissions issue
+            if ($_.Exception.Message -match 'AuthorizationFailed|Forbidden|does not have authorization') {
+                Write-Host "      ℹ️  Tip: Ensure you have 'Management Group Reader' role at tenant root level" -ForegroundColor Cyan
+            }
         }
         
         # Get Subscriptions

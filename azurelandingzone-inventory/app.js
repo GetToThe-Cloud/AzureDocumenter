@@ -75,8 +75,20 @@ async function requestAzureLogin() {
         const data = await response.json();
         
         if (data.success) {
-            authStatus.innerHTML = '✓ Authentication successful! Loading data...';
-            location.reload();
+            let message = '✓ Authentication successful!';
+            
+            // Check management group access
+            if (data.managementGroupsAccessible === false) {
+                message += '<br>⚠️ Warning: Management Groups not accessible. You may need "Management Group Reader" role.';
+            } else if (data.managementGroupCount !== undefined) {
+                message += ` (${data.managementGroupCount} management groups found)`;
+            }
+            message += '<br>Loading data...';
+            
+            authStatus.innerHTML = message;
+            
+            // Reload after brief delay to show message
+            setTimeout(() => location.reload(), 1500);
         } else {
             authStatus.className = 'auth-status not-authenticated';
             authStatus.innerHTML = `⚠️ Authentication required. ${data.message || 'Please sign in to Azure.'}`;

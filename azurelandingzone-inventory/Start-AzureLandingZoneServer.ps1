@@ -72,6 +72,20 @@ $script:LastUpdate = $null
 
 Write-Host "🔐 Azure Authentication Status: $(if ($script:IsAuthenticated) { 'Connected ✓' } else { 'Not Connected ✗' })" -ForegroundColor $(if ($script:IsAuthenticated) { 'Green' } else { 'Yellow' })
 
+# Test Management Group access if authenticated
+if ($script:IsAuthenticated) {
+    try {
+        $ctx = Get-AzContext
+        Write-Host "   📋 Context: $($ctx.Account.Id) @ Tenant: $($ctx.Tenant.Id)" -ForegroundColor Gray
+        
+        $testMg = @(Get-AzManagementGroup -ErrorAction Stop)
+        Write-Host "   ✓ Management Groups accessible ($($testMg.Count) found)" -ForegroundColor Green
+    } catch {
+        Write-Host "   ⚠️  Management Groups NOT accessible: $($_.Exception.Message)" -ForegroundColor Yellow
+        Write-Host "   ℹ️  You may need 'Management Group Reader' role at tenant root" -ForegroundColor Cyan
+    }
+}
+
 # HTTP Listener
 $listener = New-Object System.Net.HttpListener
 $listener.Prefixes.Add("http://localhost:$Port/")
@@ -146,7 +160,24 @@ try {
                 try {
                     Connect-AzAccount -UseDeviceAuthentication | Out-Null
                     $script:IsAuthenticated = $true
-                    $content = @{ success = $true; message = "Authentication successful" } | ConvertTo-Json
+                    
+                    # Test management group access
+                    $mgAccessible = $false
+                    $mgCount = 0
+                    try {
+                        $testMg = @(Get-AzManagementGroup -ErrorAction Stop)
+                        $mgAccessible = $true
+                        $mgCount = $testMg.Count
+                    } catch {
+                        Write-Host "  ⚠️  Management Groups not accessible: $($_.Exception.Message)" -ForegroundColor Yellow
+                    }
+                    
+                    $content = @{ 
+                        success = $true
+                        message = "Authentication successful"
+                        managementGroupsAccessible = $mgAccessible
+                        managementGroupCount = $mgCount
+                    } | ConvertTo-Json
                 } catch {
                     $content = @{ success = $false; message = $_.Exception.Message } | ConvertTo-Json
                 }
