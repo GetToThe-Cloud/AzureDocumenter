@@ -16,12 +16,14 @@ A web-based inventory dashboard for Azure Local (Azure Stack HCI) environments. 
 
 ## Prerequisites
 
-- PowerShell 7+ (pwsh)
-- Azure PowerShell modules:
+- **PowerShell 7.0 or higher** (Required - the script will check and exit if not met)
+  - Download from: https://aka.ms/powershell
+- Azure PowerShell modules (auto-installed if missing):
   - Az.Accounts
   - Az.Resources
   - Az.StackHCI
   - Az.ConnectedMachine
+  - Az.ArcGateway
 - Azure subscription with Azure Local (Azure Stack HCI) resources
 - Appropriate Azure RBAC permissions to read Azure Local resources
 

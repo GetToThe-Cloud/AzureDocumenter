@@ -9,6 +9,21 @@
 # Script version
 $script:Version = "1.0.0"
 
+# Check PowerShell version requirement
+function Test-PowerShellVersion {
+    $minimumVersion = [version]"7.0.0"
+    $currentVersion = $PSVersionTable.PSVersion
+    
+    if ($currentVersion -lt $minimumVersion) {
+        Write-Error "PowerShell 7.0 or higher is required. Current version: $currentVersion"
+        Write-Host "Please install PowerShell 7 from: https://aka.ms/powershell" -ForegroundColor Yellow
+        return $false
+    }
+    
+    Write-Host "✓ PowerShell Version: $currentVersion" -ForegroundColor Green
+    return $true
+}
+
 # Check required PowerShell modules
 function Test-RequiredModules {
     $requiredModules = @(
@@ -123,7 +138,12 @@ function Get-AzureLocalInventory {
     [CmdletBinding()]
     param()
     
-    # Check modules first
+    # Check PowerShell version first
+    if (-not (Test-PowerShellVersion)) {
+        throw "PowerShell 7.0 or higher is required. Please install from: https://aka.ms/powershell"
+    }
+    
+    # Check modules
     if (-not (Test-RequiredModules)) {
         throw "Required PowerShell modules are missing. Please install them and try again."
     }

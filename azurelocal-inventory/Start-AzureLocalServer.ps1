@@ -13,10 +13,21 @@ param(
     [int]$Port = 8081
 )
 
+# Check PowerShell version requirement
+$minimumVersion = [version]"7.0.0"
+$currentVersion = $PSVersionTable.PSVersion
+
+if ($currentVersion -lt $minimumVersion) {
+    Write-Error "PowerShell 7.0 or higher is required. Current version: $currentVersion"
+    Write-Host "Please install PowerShell 7 from: https://aka.ms/powershell" -ForegroundColor Yellow
+    exit 1
+}
+
 # Import required modules
 $ErrorActionPreference = "Stop"
 
 Write-Host "🚀 Starting Azure Local Inventory Server..." -ForegroundColor Cyan
+Write-Host "✓ PowerShell Version: $currentVersion" -ForegroundColor Green
 
 # Check and import Azure modules
 $requiredModules = @(
