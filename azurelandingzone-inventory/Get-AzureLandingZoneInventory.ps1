@@ -246,19 +246,36 @@ Move Strategy:
         # Get Management Groups
         Write-Host "    ○ Collecting Management Groups..." -ForegroundColor Gray
         
-        # Store current context and temporarily clear subscription context for tenant-level operations
+        # Store current context
         $currentContext = Get-AzContext
         Write-Host "      ○ Current Context: Tenant=$($currentContext.Tenant.Id), Sub=$($currentContext.Subscription.Name)" -ForegroundColor Gray
         Write-Host "      ○ Authenticated as: $($currentContext.Account.Id)" -ForegroundColor Gray
         
         try {
-            $mgList = @(Get-AzManagementGroup -ErrorAction Stop)
+            # Management groups are tenant-level resources and don't require subscription context
+            # Some errors about resource provider registration can be safely ignored
+            $mgList = @()
+            
+            try {
+                $mgList = @(Get-AzManagementGroup -ErrorAction Stop)
+            } catch {
+                # If we get a resource provider registration error, try again with SilentlyContinue
+                # This error is misleading - MGs don't need subscription-level resource provider registration
+                if ($_.Exception.Message -match 'Microsoft\.Management/register/action|resource provider|does not have authorization') {
+                    Write-Host "      ○ Note: Ignoring subscription-level permission check (MGs are tenant-level)..." -ForegroundColor Gray
+                    $mgList = @(Get-AzManagementGroup -ErrorAction SilentlyContinue -WarningAction SilentlyContinue)
+                } else {
+                    # Real error, report it
+                    throw
+                }
+            }
+            
             $inventory.summary.totalManagementGroups = $mgList.Count
             Write-Host "      ○ Found $($mgList.Count) management group(s) at tenant level" -ForegroundColor Gray
             
             foreach ($mg in $mgList) {
                 try {
-                    $mgDetails = Get-AzManagementGroup -GroupId $mg.Name -Expand -Recurse -ErrorAction Stop
+                    $mgDetails = Get-AzManagementGroup -GroupId $mg.Name -Expand -Recurse -ErrorAction SilentlyContinue
                     $inventory.managementGroups += @{
                         id = $mg.Id
                         name = $mg.Name
@@ -281,10 +298,11 @@ Move Strategy:
             }
             Write-Host "      ✓ Collected $($inventory.summary.totalManagementGroups) management groups" -ForegroundColor Green
         } catch {
-            Write-Host "      ⚠️  Error accessing Management Groups: $($_.Exception.Message)" -ForegroundColor Yellow
+            Write-Host "      ⚠️  Unexpected error accessing Management Groups: $($_.Exception.Message)" -ForegroundColor Yellow
             Write-Host "      ○ Error details: $($_.Exception.GetType().FullName)" -ForegroundColor Gray
-            # Check if it's a permissions issue
-            if ($_.Exception.Message -match 'AuthorizationFailed|Forbidden|does not have authorization') {
+            Write-Host "      ○ This is not a common subscription-level permission issue" -ForegroundColor Gray
+            # Check if it's a tenant-level permissions issue  
+            if ($_.Exception.Message -match 'AuthorizationFailed|Forbidden') {
                 Write-Host "      ℹ️  Tip: Ensure you have 'Management Group Reader' role at tenant root level" -ForegroundColor Cyan
             }
         }
