@@ -217,6 +217,7 @@ function populateUI() {
     
     // Populate tables
     populateManagementGroups();
+    createMgHierarchyDiagram();
     populateSubscriptions();
     populatePolicies();
     populateRoleAssignments();
@@ -1827,6 +1828,157 @@ function populateVirtualMachines() {
 
 // Create network diagram
 let networkDiagramInstance = null;
+let mgHierarchyDiagramInstance = null;
+
+// Management Group Hierarchy Diagram
+function createMgHierarchyDiagram() {
+    if (!inventoryData) return;
+    
+    const container = document.getElementById('mgHierarchyDiagram');
+    if (!container) return;
+    
+    const mgs = inventoryData.managementGroups || [];
+    if (mgs.length === 0) {
+        container.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No management groups found</div>';
+        return;
+    }
+    
+    const nodes = [];
+    const edges = [];
+    const nodeMap = {};
+    
+    // Create nodes for each management group
+    mgs.forEach((mg, idx) => {
+        const nodeId = mg.name || idx;
+        nodeMap[nodeId] = idx;
+        
+        // Determine node color based on hierarchy level
+        let color = '#667eea';
+        if (!mg.parentName || mg.parentName === 'N/A' || mg.name === mg.parentName) {
+            color = '#8b5cf6'; // Root - purple
+        } else if (mg.children && mg.children.length > 0) {
+            color = '#667eea'; // Intermediate - blue
+        } else {
+            color = '#3b82f6'; // Leaf - light blue
+        }
+        
+        nodes.push({
+            id: nodeId,
+            label: mg.displayName || mg.name || 'Unknown',
+            shape: 'box',
+            color: {
+                background: color,
+                border: '#5568d3',
+                highlight: {
+                    background: '#f39c12',
+                    border: '#e67e22'
+                }
+            },
+            font: { color: '#ffffff', size: 14, face: 'Arial', bold: true },
+            title: `Name: ${mg.displayName || mg.name}\nID: ${mg.name}\nParent: ${mg.parentName || 'None'}\nChildren: ${mg.children ? mg.children.length : 0}\nType: ${mg.type || 'N/A'}`,
+            margin: 10,
+            borderWidth: 2
+        });
+    });
+    
+    // Create edges based on parent-child relationships
+    mgs.forEach(mg => {
+        if (mg.parentName && mg.parentName !== 'N/A' && mg.name !== mg.parentName) {
+            // Find parent node
+            const parentExists = mgs.find(m => m.name === mg.parentName);
+            if (parentExists) {
+                edges.push({
+                    from: mg.parentName,
+                    to: mg.name,
+                    arrows: { to: { enabled: true, type: 'arrow' } },
+                    color: { color: '#95a5a6', highlight: '#3498db' },
+                    width: 2,
+                    smooth: { type: 'cubicBezier' }
+                });
+            }
+        }
+    });
+    
+    // Create the network
+    const data = { 
+        nodes: new vis.DataSet(nodes), 
+        edges: new vis.DataSet(edges) 
+    };
+    
+    const options = {
+        layout: {
+            hierarchical: {
+                enabled: true,
+                direction: 'UD', // Up-Down
+                sortMethod: 'directed',
+                nodeSpacing: 150,
+                levelSeparation: 150,
+                treeSpacing: 200
+            }
+        },
+        physics: {
+            enabled: false
+        },
+        interaction: {
+            hover: true,
+            tooltipDelay: 200,
+            navigationButtons: true,
+            keyboard: true,
+            zoomView: true,
+            dragView: true
+        },
+        nodes: {
+            font: { size: 14 },
+            widthConstraint: { maximum: 200 }
+        },
+        edges: {
+            font: { size: 12, align: 'middle' },
+            smooth: { 
+                enabled: true,
+                type: 'cubicBezier',
+                forceDirection: 'vertical',
+                roundness: 0.4
+            }
+        }
+    };
+    
+    mgHierarchyDiagramInstance = new vis.Network(container, data, options);
+    
+    // Add click event to show details
+    mgHierarchyDiagramInstance.on('click', function(params) {
+        if (params.nodes.length > 0) {
+            const nodeId = params.nodes[0];
+            const mg = mgs.find(m => m.name === nodeId);
+            if (mg) {
+                alert(`Management Group Details:\n\nDisplay Name: ${mg.displayName || 'N/A'}\nName: ${mg.name}\nParent: ${mg.parentName || 'None'}\nChildren: ${mg.children ? mg.children.length : 0}\nType: ${mg.type || 'N/A'}`);
+            }
+        }
+    });
+    
+    // Fit the diagram to screen
+    setTimeout(() => {
+        if (mgHierarchyDiagramInstance) {
+            mgHierarchyDiagramInstance.fit();
+        }
+    }, 500);
+}
+
+function resetMgDiagram() {
+    if (mgHierarchyDiagramInstance) {
+        mgHierarchyDiagramInstance.fit();
+    }
+}
+
+function fitMgDiagram() {
+    if (mgHierarchyDiagramInstance) {
+        mgHierarchyDiagramInstance.fit({
+            animation: {
+                duration: 1000,
+                easingFunction: 'easeInOutQuad'
+            }
+        });
+    }
+}
 
 function createNetworkDiagram() {
     if (!inventoryData) return;
