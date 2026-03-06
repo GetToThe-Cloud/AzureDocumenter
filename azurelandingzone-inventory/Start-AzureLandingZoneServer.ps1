@@ -1,4 +1,5 @@
 #!/usr/bin/env pwsh
+#Requires -Version 7.0
 <#
 .SYNOPSIS
     Azure Landing Zone Inventory Web Server
@@ -7,6 +8,8 @@
     with authentication, navigation, and PDF export capabilities.
 .PARAMETER Port
     Port number for the web server (default: 8080)
+.NOTES
+    Requires PowerShell 7.0 or higher
 #>
 
 param(
@@ -17,6 +20,16 @@ param(
 $ErrorActionPreference = "Stop"
 
 Write-Host "🚀 Starting Azure Landing Zone Inventory Server..." -ForegroundColor Cyan
+
+# Check PowerShell version
+if ($PSVersionTable.PSVersion.Major -lt 7) {
+    Write-Host "❌ ERROR: PowerShell 7 or higher is required." -ForegroundColor Red
+    Write-Host "   Current version: $($PSVersionTable.PSVersion)" -ForegroundColor Yellow
+    Write-Host "   Download PowerShell 7+: https://aka.ms/powershell" -ForegroundColor Cyan
+    exit 1
+}
+
+Write-Host "✓ PowerShell version: $($PSVersionTable.PSVersion)" -ForegroundColor Green
 
 # Check and import Azure modules
 $requiredModules = @(

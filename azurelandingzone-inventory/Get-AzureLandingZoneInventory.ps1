@@ -1,9 +1,12 @@
+#Requires -Version 7.0
 <#
 .SYNOPSIS
     Azure Landing Zone Inventory Collection Module
 .DESCRIPTION
     Collects comprehensive inventory data from Azure Landing Zone environments including
     management groups, policies, subscriptions, networking, and governance settings.
+.NOTES
+    Requires PowerShell 7.0 or higher
 #>
 
 # Script version
