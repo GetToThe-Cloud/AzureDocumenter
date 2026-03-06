@@ -47,7 +47,7 @@ function Get-AzureLandingZoneInventory {
         }
         governance = @{
             budgets = @()
-            tags = @()
+            tags = @{}
             locks = @()
             diagnosticSettings = @()
         }
@@ -955,34 +955,106 @@ Move Strategy:
                     }
                 } catch {}
                 
-                # Resource Locks
-                $locks = Get-AzResourceLock -ErrorAction SilentlyContinue
-                foreach ($lock in $locks) {
-                    $inventory.governance.locks += @{
-                        name = $lock.Name
-                        resourceName = $lock.ResourceName
-                        resourceType = $lock.ResourceType
-                        level = $lock.Properties.Level
-                        notes = $lock.Properties.Notes
-                        subscription = $sub.Name
+                # Resource Locks (subscription, resource groups, and resources)
+                Write-Host "      • Collecting resource locks..." -ForegroundColor Gray
+                try {
+                    # Get locks at subscription level
+                    $subLocks = Get-AzResourceLock -Scope "/subscriptions/$($sub.Id)" -ErrorAction SilentlyContinue
+                    foreach ($lock in $subLocks) {
+                        $inventory.governance.locks += @{
+                            name = $lock.Name
+                            resourceName = if ($lock.ResourceName) { $lock.ResourceName } else { "Subscription: $($sub.Name)" }
+                            resourceType = if ($lock.ResourceType) { $lock.ResourceType } else { "Subscription" }
+                            resourceGroup = $lock.ResourceGroupName
+                            level = $lock.Properties.Level
+                            notes = $lock.Properties.Notes
+                            subscription = $sub.Name
+                            scope = "Subscription"
+                        }
                     }
+                    
+                    # Get locks at resource group level
+                    $resourceGroups = Get-AzResourceGroup -ErrorAction SilentlyContinue
+                    foreach ($rg in $resourceGroups) {
+                        $rgLocks = Get-AzResourceLock -ResourceGroupName $rg.ResourceGroupName -ErrorAction SilentlyContinue
+                        foreach ($lock in $rgLocks) {
+                            # Avoid duplicates if already collected at subscription level
+                            $lockExists = $inventory.governance.locks | Where-Object { 
+                                $_.name -eq $lock.Name -and $_.resourceGroup -eq $lock.ResourceGroupName 
+                            }
+                            if (-not $lockExists) {
+                                $inventory.governance.locks += @{
+                                    name = $lock.Name
+                                    resourceName = if ($lock.ResourceName) { $lock.ResourceName } else { "Resource Group: $($rg.ResourceGroupName)" }
+                                    resourceType = if ($lock.ResourceType) { $lock.ResourceType } else { "ResourceGroup" }
+                                    resourceGroup = $rg.ResourceGroupName
+                                    level = $lock.Properties.Level
+                                    notes = $lock.Properties.Notes
+                                    subscription = $sub.Name
+                                    scope = "ResourceGroup"
+                                }
+                            }
+                        }
+                    }
+                    
+                    $lockCount = ($inventory.governance.locks | Where-Object { $_.subscription -eq $sub.Name }).Count
+                    $inventory.summary.totalLocks += $lockCount
+                    Write-Host "      ✓ Collected $lockCount locks" -ForegroundColor Green
+                } catch {
+                    Write-Host "      ⚠️  Error collecting locks" -ForegroundColor Yellow
                 }
-                $inventory.summary.totalLocks += $locks.Count
                 
-                # Collect commonly used tags
-                $resources = Get-AzResource -ErrorAction SilentlyContinue
-                foreach ($resource in $resources) {
-                    if ($resource.Tags) {
-                        foreach ($tagKey in $resource.Tags.Keys) {
+                # Collect tags from subscriptions, resource groups, and selected resources
+                Write-Host "      • Collecting tags..." -ForegroundColor Gray
+                try {
+                    # Subscription tags
+                    $subResource = Get-AzSubscription -SubscriptionId $sub.Id -ErrorAction SilentlyContinue
+                    if ($subResource.Tags) {
+                        foreach ($tagKey in $subResource.Tags.Keys) {
                             if (-not $inventory.governance.tags.ContainsKey($tagKey)) {
                                 $inventory.governance.tags[$tagKey] = @()
                             }
-                            $tagValue = $resource.Tags[$tagKey]
+                            $tagValue = $subResource.Tags[$tagKey]
                             if ($tagValue -notin $inventory.governance.tags[$tagKey]) {
                                 $inventory.governance.tags[$tagKey] += $tagValue
                             }
                         }
                     }
+                    
+                    # Resource group tags
+                    foreach ($rg in $resourceGroups) {
+                        if ($rg.Tags) {
+                            foreach ($tagKey in $rg.Tags.Keys) {
+                                if (-not $inventory.governance.tags.ContainsKey($tagKey)) {
+                                    $inventory.governance.tags[$tagKey] = @()
+                                }
+                                $tagValue = $rg.Tags[$tagKey]
+                                if ($tagValue -notin $inventory.governance.tags[$tagKey]) {
+                                    $inventory.governance.tags[$tagKey] += $tagValue
+                                }
+                            }
+                        }
+                    }
+                    
+                    # Sample resource tags (limit to avoid performance issues)
+                    $sampleResources = Get-AzResource -ErrorAction SilentlyContinue | Select-Object -First 100
+                    foreach ($resource in $sampleResources) {
+                        if ($resource.Tags) {
+                            foreach ($tagKey in $resource.Tags.Keys) {
+                                if (-not $inventory.governance.tags.ContainsKey($tagKey)) {
+                                    $inventory.governance.tags[$tagKey] = @()
+                                }
+                                $tagValue = $resource.Tags[$tagKey]
+                                if ($tagValue -notin $inventory.governance.tags[$tagKey]) {
+                                    $inventory.governance.tags[$tagKey] += $tagValue
+                                }
+                            }
+                        }
+                    }
+                    
+                    Write-Host "      ✓ Collected $($inventory.governance.tags.Keys.Count) unique tag keys" -ForegroundColor Green
+                } catch {
+                    Write-Host "      ⚠️  Error collecting tags" -ForegroundColor Yellow
                 }
                 
             } catch {

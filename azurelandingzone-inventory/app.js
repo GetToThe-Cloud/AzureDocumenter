@@ -99,9 +99,18 @@ async function authenticateAzure() {
 async function loadInventory() {
     try {
         showLoading();
+        showProgress();
+        
+        // Simulate progress while waiting for server
+        const progressInterval = simulateProgress();
+        
         const response = await fetch('/api/inventory/data');
         
+        clearInterval(progressInterval);
+        updateProgress(95, 'Processing data...');
+        
         if (response.status === 401) {
+            hideProgress();
             showAuthRequired();
             return;
         }
@@ -109,16 +118,22 @@ async function loadInventory() {
         inventoryData = await response.json();
         
         if (inventoryData.error) {
+            hideProgress();
             alert('Error loading inventory: ' + inventoryData.error);
             return;
         }
+        
+        updateProgress(100, 'Complete!');
         
         console.log(`📊 Inventory loaded - Data version: ${inventoryData.version || 'unknown'}, App version: ${APP_VERSION}`);
         updateLastUpdate();
         updateVersionInfo();
         populateUI();
         hideAuthRequired();
+        
+        setTimeout(() => hideProgress(), 500);
     } catch (error) {
+        hideProgress();
         console.error('Error loading inventory:', error);
         alert('Failed to load inventory: ' + error.message);
     }
@@ -166,6 +181,64 @@ function showLoading() {
     document.querySelectorAll('.content-section tbody').forEach(tbody => {
         tbody.innerHTML = '<tr><td colspan="10" class="loading">Loading</td></tr>';
     });
+}
+
+// Progress bar functions
+function showProgress() {
+    const overlay = document.getElementById('progressOverlay');
+    if (overlay) {
+        overlay.style.display = 'flex';
+        updateProgress(0, 'Initializing...');
+    }
+}
+
+function hideProgress() {
+    const overlay = document.getElementById('progressOverlay');
+    if (overlay) {
+        setTimeout(() => {
+            overlay.style.display = 'none';
+        }, 300);
+    }
+}
+
+function updateProgress(percentage, status) {
+    const fill = document.getElementById('progressBarFill');
+    const percentageEl = document.getElementById('progressPercentage');
+    const statusEl = document.getElementById('progressStatus');
+    
+    if (fill) fill.style.width = percentage + '%';
+    if (percentageEl) percentageEl.textContent = Math.round(percentage) + '%';
+    if (statusEl) statusEl.textContent = status;
+}
+
+function simulateProgress() {
+    let progress = 0;
+    const stages = [
+        { max: 10, status: 'Connecting to Azure...' },
+        { max: 20, status: 'Collecting Management Groups...' },
+        { max: 35, status: 'Gathering Subscriptions...' },
+        { max: 45, status: 'Analyzing Policies...' },
+        { max: 55, status: 'Collecting Role Assignments...' },
+        { max: 65, status: 'Scanning Virtual Networks...' },
+        { max: 75, status: 'Retrieving Firewall Configurations...' },
+        { max: 85, status: 'Checking Virtual Machines...' },
+        { max: 90, status: 'Gathering Governance Data...' }
+    ];
+    
+    let stageIndex = 0;
+    
+    return setInterval(() => {
+        if (progress < 90 && stageIndex < stages.length) {
+            const currentStage = stages[stageIndex];
+            progress += (currentStage.max - progress) * 0.1;
+            
+            if (progress >= currentStage.max * 0.9) {
+                stageIndex++;
+            }
+            
+            updateProgress(progress, currentStage.status);
+        }
+    }, 300);
 }
 
 // Hide authentication required screen
