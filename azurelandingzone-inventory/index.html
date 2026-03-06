@@ -286,40 +286,21 @@
                         <strong>About Management Groups:</strong>
                         <p id="managementGroupsExplanation" class="explanation-text">Loading...</p>
                     </div>
-                    
-                    <!-- Management Group Hierarchy Diagram -->
-                    <div class="subsection">
-                        <h3>Management Group Hierarchy</h3>
-                        <div class="diagram-controls">
-                            <button onclick="resetMgDiagram()" class="btn btn-secondary">
-                                <span class="icon">🔄</span> Reset View
-                            </button>
-                            <button onclick="fitMgDiagram()" class="btn btn-secondary">
-                                <span class="icon">📏</span> Fit to Screen
-                            </button>
-                        </div>
-                        <div id="mgHierarchyDiagram" class="network-diagram"></div>
-                    </div>
-                    
-                    <!-- Management Groups Table -->
-                    <div class="subsection">
-                        <h3>Management Groups Details</h3>
-                        <div id="managementgroupsContent" class="data-table-container">
-                            <table class="data-table">
-                                <thead>
-                                    <tr>
-                                        <th>Display Name</th>
-                                        <th>Name</th>
-                                        <th>Parent</th>
-                                        <th>Children Count</th>
-                                        <th>Type</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="managementgroupsTableBody">
-                                    <tr><td colspan="5">Loading...</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
+                    <div id="managementgroupsContent" class="data-table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Display Name</th>
+                                    <th>Name</th>
+                                    <th>Parent</th>
+                                    <th>Children Count</th>
+                                    <th>Type</th>
+                                </tr>
+                            </thead>
+                            <tbody id="managementgroupsTableBody">
+                                <tr><td colspan="5">Loading...</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </section>
 
